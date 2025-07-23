@@ -1,0 +1,932 @@
+// app/(tabs)/index.tsx
+// @ts-nocheck
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Video } from 'expo-av';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  Dimensions,
+  Image, ImageBackground, Linking,
+  Platform,
+  SafeAreaView,
+  SectionList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
+
+const backgroundPattern = require('../../assets/background.png');
+
+const screenWidth = Dimensions.get('window').width;
+const EVENTS_PER_PAGE = 20;
+const VIEWABILITY_CONFIG = {
+  viewAreaCoveragePercentThreshold: 50,
+  minimumViewTime: 100,
+};
+
+// Header animation constants
+const HEADER_MAX_HEIGHT = 100; // Back to original size to keep header text position
+const HEADER_MIN_HEIGHT = 0;
+const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
+const CONTENT_PADDING_TOP = 70; // Reduced from 80 to bring content higher
+
+interface RawEvent {
+  id: string;
+  businessId: string;
+  title: string;
+  date: string;
+  link?: string;
+  tags: string[];
+  image?: string;
+  video?: string;
+  businessName?: string;
+}
+
+interface Section { 
+  title: string; 
+  data: RawEvent[]; 
+}
+
+// Memoized date formatter
+const formatDateHeader = (dateString: string): string => {
+  const then = new Date(`${dateString}T00:00:00`);
+  const day = then.getDate();
+  let suffix = 'th';
+  if (day % 10 === 1 && day !== 11) suffix = 'st';
+  else if (day % 10 === 2 && day !== 12) suffix = 'nd';
+  else if (day % 10 === 3 && day !== 13) suffix = 'rd';
+  const month = then.toLocaleString('default', { month: 'long' });
+  return `${month} ${day}${suffix}`;
+};
+
+// Memoized Section Header Component
+const SectionHeader = React.memo(({ section }: { section: Section }) => (
+  <View style={styles.dateSeparator}>
+    <Text style={styles.dateText}>{formatDateHeader(section.title)}</Text>
+  </View>
+));
+
+// Optimized EventItem component with better memoization
+const EventItem = React.memo(({ 
+  item, 
+  isVisible,
+  aspectRatio,
+  isSaved,
+  isSoundEnabled,
+  onAspectRatioChange,
+  onToggleSaveEvent,
+  onToggleVideoSound
+}: {
+  item: RawEvent;
+  isVisible: boolean;
+  aspectRatio?: number;
+  isSaved: boolean;
+  isSoundEnabled: boolean;
+  onAspectRatioChange: (id: string, ratio: number) => void;
+  onToggleSaveEvent: (id: string) => void;
+  onToggleVideoSound: (id: string) => void;
+}) => {
+  // Memoize expensive calculations
+  const time = useMemo(() => 
+    new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 
+    [item.date]
+  );
+  
+  const { mediaUri, isVideo } = useMemo(() => {
+    const uri = item.video || item.image;
+    return {
+      mediaUri: uri,
+      isVideo: uri ? /\.(mp4|mov|m4v)$/i.test(uri) : false
+    };
+  }, [item.video, item.image]);
+
+  const handlePress = useCallback(() => {
+    if (item.link) {
+      Linking.openURL(item.link);
+    }
+  }, [item.link]);
+
+  const handleImageLoad = useCallback((e: any) => {
+    const { width: imgW, height: imgH } = e.nativeEvent.source;
+    if (imgW && imgH) {
+      onAspectRatioChange(item.id, imgW / imgH);
+    }
+  }, [item.id, onAspectRatioChange]);
+
+  const handleVideoReady = useCallback((event: any) => {
+    const vidW = event.naturalSize?.width;
+    const vidH = event.naturalSize?.height;
+    if (vidW && vidH) {
+      onAspectRatioChange(item.id, vidW / vidH);
+    }
+  }, [item.id, onAspectRatioChange]);
+
+  const handleSavePress = useCallback(() => {
+    onToggleSaveEvent(item.id);
+  }, [item.id, onToggleSaveEvent]);
+
+  const handleSoundToggle = useCallback(() => {
+    onToggleVideoSound(item.id);
+  }, [item.id, onToggleVideoSound]);
+
+  return (
+    <TouchableOpacity activeOpacity={0.8} onPress={handlePress}>
+      <View style={styles.cardContainer}>
+        <View style={styles.businessNameHeader}>
+          <Text style={styles.businessNameText}>{item.businessName}</Text>
+        </View>
+        
+        {/* Image/Video */}
+        {mediaUri ? (
+          isVideo ? (
+            <View style={styles.videoContainer}>
+              <Video
+                source={{ uri: mediaUri }}
+                style={{
+                  width: screenWidth,
+                  height: aspectRatio ? screenWidth / aspectRatio : screenWidth / 1.5,
+                  backgroundColor: '#000',
+                }}
+                resizeMode="contain"
+                isLooping
+                shouldPlay={isVisible}
+                isMuted={!isSoundEnabled}
+                onReadyForDisplay={handleVideoReady}
+                useNativeControls={false}
+                progressUpdateIntervalMillis={1000}
+                onLoadStart={() => {}}
+                onLoad={() => {}}
+                preferredForwardBufferDuration={15}
+              />
+              
+              <TouchableOpacity 
+                style={styles.soundToggle} 
+                onPress={handleSoundToggle}
+              >
+                <Text style={styles.soundIcon}>
+                  {isSoundEnabled ? '♪' : '✕'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <Image
+              source={{ uri: mediaUri }}
+              style={{
+                width: screenWidth,
+                aspectRatio: aspectRatio || 1.5,
+              }}
+              resizeMode="cover"
+              onLoad={handleImageLoad}
+            />
+          )
+        ) : null}
+
+        {/* Caption below image */}
+        <View style={styles.captionContainer}>
+          <View style={styles.captionContent}>
+            <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+            <Text style={styles.cardTime}>{time}</Text>
+          </View>
+          <TouchableOpacity onPress={handleSavePress} style={styles.saveButton}>
+            <Text style={styles.saveIcon}>{isSaved ? '★' : '☆'}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}, (prevProps, nextProps) => {
+  // Enhanced comparison for better memoization
+  return (
+    prevProps.item.id === nextProps.item.id &&
+    prevProps.item.title === nextProps.item.title &&
+    prevProps.item.businessName === nextProps.item.businessName &&
+    prevProps.isVisible === nextProps.isVisible &&
+    prevProps.aspectRatio === nextProps.aspectRatio &&
+    prevProps.isSaved === nextProps.isSaved &&
+    prevProps.isSoundEnabled === nextProps.isSoundEnabled
+  );
+});
+
+// Memoized LoadMoreButton component
+const LoadMoreButton = React.memo(({ 
+  hasMoreEvents, 
+  loadingMore, 
+  onLoadMore 
+}: {
+  hasMoreEvents: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
+}) => {
+  if (!hasMoreEvents) return null;
+
+  return (
+    <TouchableOpacity 
+      style={styles.loadMoreButton} 
+      onPress={onLoadMore}
+      disabled={loadingMore}
+    >
+      {loadingMore ? (
+        <View style={styles.loadingMore}>
+          <ActivityIndicator size="small" color="#fff" />
+          <Text style={styles.loadingMoreText}>Loading more events...</Text>
+        </View>
+      ) : (
+        <Text style={styles.loadMoreButtonText}>Load More Events</Text>
+      )}
+    </TouchableOpacity>
+  );
+});
+
+export default function WhatsOnScreen() {
+  const router = useRouter();
+  const { date: forcedDate, businessId } = useLocalSearchParams<{ date?: string; businessId?: string; }>();
+  
+  const [sections, setSections] = useState<Section[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [allEvents, setAllEvents] = useState<RawEvent[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMoreEvents, setHasMoreEvents] = useState(true);
+  const [savedEvents, setSavedEvents] = useState<string[]>([]);
+  const [showOnlySaved, setShowOnlySaved] = useState(false);
+  const [aspectRatios, setAspectRatios] = useState<Record<string, number>>({});
+  const [visibleVideos, setVisibleVideos] = useState<Set<string>>(new Set());
+  const [videoSoundEnabled, setVideoSoundEnabled] = useState<Record<string, boolean>>({});
+  const [isScrolling, setIsScrolling] = useState(false);
+  const [pendingEvents, setPendingEvents] = useState<RawEvent[]>([]);
+  
+  // Header animation values
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
+  const headerOffset = useRef(new Animated.Value(0)).current; // Separate value for header position
+  
+  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Use ref to prevent unnecessary re-renders
+  const sectionListRef = useRef<SectionList>(null);
+  const loadingRef = useRef(false);
+
+  // Memoized business map for better performance
+  const businessMap = useRef<Record<string, string>>({});
+
+  // Header animation interpolations - based on headerOffset for directional behavior
+  const headerTranslateY = headerOffset.interpolate({
+    inputRange: [0, HEADER_SCROLL_DISTANCE],
+    outputRange: [0, -HEADER_MAX_HEIGHT],
+    extrapolate: 'clamp',
+  });
+
+  const headerOpacity = headerOffset.interpolate({
+    inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
+    outputRange: [1, 0.5, 0],
+    extrapolate: 'clamp',
+  });
+
+  const headerHeight = headerOffset.interpolate({
+    inputRange: [0, HEADER_SCROLL_DISTANCE],
+    outputRange: [HEADER_MAX_HEIGHT, HEADER_MIN_HEIGHT],
+    extrapolate: 'clamp',
+  });
+
+  // Content padding animation to follow header
+  const contentPaddingTop = headerOffset.interpolate({
+    inputRange: [0, HEADER_SCROLL_DISTANCE],
+    outputRange: [CONTENT_PADDING_TOP, HEADER_MIN_HEIGHT], // Use separate padding value
+    extrapolate: 'clamp',
+  });
+
+  const loadEventsPage = useCallback(async (page: number, isInitial: boolean = false) => {
+    // Prevent duplicate loading
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+
+    if (isInitial) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+
+    try {
+      const [rawEv, rawBiz] = await Promise.all([
+        AsyncStorage.getItem('events'),
+        AsyncStorage.getItem('businesses')
+      ]);
+
+      let allEv: RawEvent[] = rawEv ? JSON.parse(rawEv) : [];
+      const bizArr = rawBiz ? JSON.parse(rawBiz) : [];
+      
+      // Update business map only if it's empty or data changed
+      if (Object.keys(businessMap.current).length === 0 || bizArr.length !== Object.keys(businessMap.current).length) {
+        businessMap.current = bizArr.reduce((map: Record<string,string>, biz: any) => {
+          map[biz.id] = biz.name;
+          return map;
+        }, {});
+      }
+
+      if (businessId) allEv = allEv.filter(e => e.businessId === businessId);
+      
+      const todayMid = new Date(); 
+      todayMid.setHours(0,0,0,0);
+      let filtered = allEv.filter(e =>
+        forcedDate
+          ? e.date.slice(0,10) === forcedDate
+          : new Date(e.date).getTime() >= todayMid.getTime()
+      );
+
+      if (!forcedDate && !businessId) {
+        if (showOnlySaved) {
+          const saved = await AsyncStorage.getItem('savedEvents');
+          const ids = saved ? JSON.parse(saved) : [];
+          filtered = filtered.filter(e => ids.includes(e.id));
+        } else {
+          const rawInt = await AsyncStorage.getItem('userInterests');
+          const ints = (rawInt ? JSON.parse(rawInt) : [])
+            .map((i: string) => i.toLowerCase().trim());
+          if (ints.length) {
+            filtered = filtered.filter(e =>
+              e.tags.some(tag => ints.includes(tag.toLowerCase().trim()))
+            );
+          } else {
+            filtered = [];
+          }
+        }
+      }
+
+      filtered = filtered.map(ev => ({ 
+        ...ev, 
+        businessName: businessMap.current[ev.businessId] || 'Unknown' 
+      }));
+      filtered.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      // Store all events for pagination
+      if (isInitial) {
+        setAllEvents(filtered);
+      }
+
+      // Get events for this page
+      const startIndex = page * EVENTS_PER_PAGE;
+      const endIndex = startIndex + EVENTS_PER_PAGE;
+      const pageEvents = filtered.slice(startIndex, endIndex);
+      
+      // Check if there are more events
+      setHasMoreEvents(endIndex < filtered.length);
+
+      if (isInitial) {
+        // Initial load - create new sections
+        const grouped: Section[] = [];
+        pageEvents.forEach(ev => {
+          const key = ev.date.slice(0,10);
+          let sec = grouped.find(s => s.title === key);
+          if (!sec) {
+            grouped.push({ title: key, data: [ev] });
+          } else {
+            sec.data.push(ev);
+          }
+        });
+        setSections(grouped);
+      } else {
+        // Load more - queue events if user is scrolling, otherwise update immediately
+        if (isScrolling) {
+          // User is actively scrolling - queue the events for later
+          setPendingEvents(prev => [...prev, ...pageEvents]);
+        } else {
+          // User not scrolling - safe to update immediately
+          setSections(prevSections => {
+            const newSections = prevSections.map(section => ({
+              ...section,
+              data: [...section.data]
+            }));
+            
+            pageEvents.forEach(ev => {
+              const key = ev.date.slice(0,10);
+              let existingSection = newSections.find(s => s.title === key);
+              
+              if (existingSection) {
+                const eventExists = existingSection.data.some(existing => existing.id === ev.id);
+                if (!eventExists) {
+                  existingSection.data.push(ev);
+                  existingSection.data.sort((a, b) => 
+                    new Date(a.date).getTime() - new Date(b.date).getTime()
+                  );
+                }
+              } else {
+                const newSection = { title: key, data: [ev] };
+                let insertIndex = newSections.length;
+                for (let i = 0; i < newSections.length; i++) {
+                  if (key < newSections[i].title) {
+                    insertIndex = i;
+                    break;
+                  }
+                }
+                newSections.splice(insertIndex, 0, newSection);
+              }
+            });
+            
+            return newSections;
+          });
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error loading events:', error);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+      loadingRef.current = false;
+    }
+  }, [forcedDate, businessId, showOnlySaved]);
+
+  const loadMoreEvents = useCallback(() => {
+    if (!loadingMore && hasMoreEvents && !loading && !loadingRef.current) {
+      setLoadingMore(true);
+      
+      // Preemptively mark as scrolling to catch early scroll events
+      setIsScrolling(true);
+      
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      
+      // Load the data but with a slight delay to let scroll detection activate
+      setTimeout(() => {
+        loadEventsPage(nextPage, false);
+      }, 50);
+    }
+  }, [currentPage, loadingMore, hasMoreEvents, loading, loadEventsPage]);
+
+  const toggleSaveEvent = useCallback(async (eventId: string) => {
+    const newSaved = savedEvents.includes(eventId)
+      ? savedEvents.filter(id => id !== eventId)
+      : [...savedEvents, eventId];
+    setSavedEvents(newSaved);
+    
+    // Async storage update without blocking UI
+    AsyncStorage.setItem('savedEvents', JSON.stringify(newSaved)).catch(console.error);
+  }, [savedEvents]);
+
+  const handleAspectRatioChange = useCallback((eventId: string, ratio: number) => {
+    setAspectRatios(prev => ({ ...prev, [eventId]: ratio }));
+  }, []);
+
+  const handleToggleVideoSound = useCallback((eventId: string) => {
+    setVideoSoundEnabled(prev => ({
+      ...prev,
+      [eventId]: !prev[eventId]
+    }));
+  }, []);
+
+  const handleScroll = useCallback((event: any) => {
+    const currentScrollY = event.nativeEvent.contentOffset.y;
+    const contentHeight = event.nativeEvent.contentSize.height;
+    const scrollViewHeight = event.nativeEvent.layoutMeasurement.height;
+    const scrollDelta = currentScrollY - lastScrollY.current;
+    
+    // Don't update header position if we're in the bounce area (negative scroll or bottom overscroll)
+    if (currentScrollY < 0 || currentScrollY > (contentHeight - scrollViewHeight)) {
+      lastScrollY.current = currentScrollY;
+      return;
+    }
+    
+    // Don't update header during loading to prevent shake
+    if (loadingMore) {
+      lastScrollY.current = currentScrollY;
+      return;
+    }
+    
+    // Only update header position for significant scroll movements
+    if (Math.abs(scrollDelta) > 2) {
+      const direction = scrollDelta > 0 ? 'down' : 'up';
+      
+      // Get current header offset value
+      const currentOffset = (headerOffset as any)._value || 0;
+      
+      if (direction === 'down') {
+        // Scrolling down - hide header
+        const newOffset = Math.min(currentOffset + Math.abs(scrollDelta) * 0.8, HEADER_SCROLL_DISTANCE);
+        Animated.timing(headerOffset, {
+          toValue: newOffset,
+          duration: 0, // Immediate update
+          useNativeDriver: false,
+        }).start();
+      } else {
+        // Scrolling up - show header
+        const newOffset = Math.max(currentOffset - Math.abs(scrollDelta) * 0.8, 0);
+        Animated.timing(headerOffset, {
+          toValue: newOffset,
+          duration: 0, // Immediate update
+          useNativeDriver: false,
+        }).start();
+      }
+    }
+    
+    lastScrollY.current = currentScrollY;
+    setIsScrolling(true);
+    
+    // Clear existing timeout
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    
+    // Set scroll to false after user stops scrolling for 200ms
+    scrollTimeoutRef.current = setTimeout(() => {
+      setIsScrolling(false);
+      
+      // Process any pending events when scrolling stops
+      if (pendingEvents.length > 0) {
+        setSections(prevSections => {
+          const newSections = prevSections.map(section => ({
+            ...section,
+            data: [...section.data]
+          }));
+          
+          pendingEvents.forEach(ev => {
+            const key = ev.date.slice(0,10);
+            let existingSection = newSections.find(s => s.title === key);
+            
+            if (existingSection) {
+              const eventExists = existingSection.data.some(existing => existing.id === ev.id);
+              if (!eventExists) {
+                existingSection.data.push(ev);
+                existingSection.data.sort((a, b) => 
+                  new Date(a.date).getTime() - new Date(b.date).getTime()
+                );
+              }
+            } else {
+              const newSection = { title: key, data: [ev] };
+              let insertIndex = newSections.length;
+              for (let i = 0; i < newSections.length; i++) {
+                if (key < newSections[i].title) {
+                  insertIndex = i;
+                  break;
+                }
+              }
+              newSections.splice(insertIndex, 0, newSection);
+            }
+          });
+          
+          return newSections;
+        });
+        
+        setPendingEvents([]);
+      }
+    }, 200);
+  }, [pendingEvents, headerOffset, loadingMore]);
+
+  const handleViewableItemsChanged = useCallback(({ viewableItems }: any) => {
+    const visibleIds = viewableItems
+      .filter((item: any) => item.isViewable && item.item?.id)
+      .map((item: any) => item.item.id);
+    setVisibleVideos(new Set(visibleIds));
+  }, []);
+
+  const loadSavedEvents = useCallback(async () => {
+    try {
+      const saved = await AsyncStorage.getItem('savedEvents');
+      setSavedEvents(saved ? JSON.parse(saved) : []);
+    } catch {
+      setSavedEvents([]);
+    }
+  }, []);
+
+  const toggleShowOnlySaved = useCallback(() => {
+    setShowOnlySaved(prev => !prev);
+  }, []);
+
+  // Memoized render functions
+  const renderItem = useCallback(({ item }: { item: RawEvent }) => (
+    <EventItem
+      item={item}
+      isVisible={visibleVideos.has(item.id)}
+      aspectRatio={aspectRatios[item.id]}
+      isSaved={savedEvents.includes(item.id)}
+      isSoundEnabled={videoSoundEnabled[item.id] || false}
+      onAspectRatioChange={handleAspectRatioChange}
+      onToggleSaveEvent={toggleSaveEvent}
+      onToggleVideoSound={handleToggleVideoSound}
+    />
+  ), [visibleVideos, aspectRatios, savedEvents, videoSoundEnabled, handleAspectRatioChange, toggleSaveEvent, handleToggleVideoSound]);
+
+  const renderSectionHeader = useCallback(({ section }: { section: Section }) => (
+    <SectionHeader section={section} />
+  ), []);
+
+  const keyExtractor = useCallback((item: RawEvent) => item.id, []);
+
+  const ListFooterComponent = useMemo(() => (
+    <LoadMoreButton 
+      hasMoreEvents={hasMoreEvents}
+      loadingMore={loadingMore}
+      onLoadMore={loadMoreEvents}
+    />
+  ), [hasMoreEvents, loadingMore, loadMoreEvents]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        await loadSavedEvents();
+        if (active) {
+          setCurrentPage(0);
+          loadEventsPage(0, true);
+        }
+      })();
+      return () => { 
+        active = false;
+        // Stop all videos when navigating away
+        setVisibleVideos(new Set());
+      };
+    }, [forcedDate, businessId, showOnlySaved, loadEventsPage, loadSavedEvents])
+  );
+
+  // Memoized empty state message
+  const emptyMessage = useMemo(() => {
+    if (businessId) return 'No events for this business.';
+    if (showOnlySaved) return 'No saved events found.';
+    return 'No upcoming events match your interests.';
+  }, [businessId, showOnlySaved]);
+
+  return (
+    <ImageBackground 
+      source={backgroundPattern} 
+      style={styles.background}
+      resizeMode="repeat"
+    >
+      {/* Inverted Gradient Overlay */}
+      <LinearGradient 
+        colors={['rgba(0, 0, 0, 0.85)', 'rgba(43, 146, 168, 0.9)']} 
+        style={StyleSheet.absoluteFillObject}
+      />
+      
+      <SafeAreaView style={styles.safe}>
+        {/* Animated Header */}
+        <Animated.View 
+          style={[
+            styles.headerContainer,
+            {
+              height: headerHeight,
+              transform: [{ translateY: headerTranslateY }],
+              opacity: headerOpacity,
+            }
+          ]}
+        >
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.replace('../')}
+          >
+            <Text style={styles.backIcon}>←</Text>
+          </TouchableOpacity>
+          <Text style={styles.header}>What's On</Text>
+          <TouchableOpacity style={styles.savedToggle} onPress={toggleShowOnlySaved}>
+            <Text style={styles.star}>{showOnlySaved ? '★' : '☆'}</Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* UPDATED: Animated list container with animated padding */}
+        <Animated.View style={[styles.listContainer, { paddingTop: contentPaddingTop }]}>
+          {loading ? (
+            <View style={styles.center}>
+              <ActivityIndicator size="large" color="#fff" />
+            </View>
+          ) : !sections.length ? (
+            <View style={styles.center}>
+              <Text style={styles.empty}>{emptyMessage}</Text>
+            </View>
+          ) : (
+            <SectionList
+              ref={sectionListRef}
+              sections={sections}
+              keyExtractor={keyExtractor}
+              onViewableItemsChanged={handleViewableItemsChanged}
+              viewabilityConfig={VIEWABILITY_CONFIG}
+              renderSectionHeader={renderSectionHeader}
+              renderItem={renderItem}
+              contentContainerStyle={styles.listWithoutPadding}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+              removeClippedSubviews={false}
+              maxToRenderPerBatch={15}
+              initialNumToRender={12}
+              windowSize={25}
+              getItemLayout={undefined}
+              ListFooterComponent={ListFooterComponent}
+              updateCellsBatchingPeriod={150}
+              legacyImplementation={false}
+              stickySectionHeadersEnabled={true}
+            />
+          )}
+        </Animated.View>
+      </SafeAreaView>
+    </ImageBackground>
+  );
+}
+
+WhatsOnScreen.options = { headerShown: false };
+
+const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+  },
+  safe: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? 24 : 0,
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    position: 'absolute',
+    top: Platform.OS === 'android' ? 48 : 24,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+  },
+  header: {
+    flex: 1,
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#fff',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+    marginTop: -5,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  savedToggle: {
+    position: 'absolute',
+    right: 16,
+    padding: 12,
+  },
+  star: {
+    fontSize: 26,
+    color: '#FFD700',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  empty: {
+    fontSize: 18,
+    color: '#fff',
+    textAlign: 'center',
+    opacity: 0.8,
+    fontWeight: '500',
+  },
+  listContainer: {
+    flex: 1,
+  },
+  // UPDATED: Removed paddingTop since it's now handled by animated container
+  listWithoutPadding: {
+    paddingBottom: 20,
+  },
+  dateSeparator: {
+    backgroundColor: 'rgba(29, 29, 29, 0.5)',
+    paddingVertical: 4,
+    paddingHorizontal: 20,
+    marginTop: 0,
+    marginBottom: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  dateText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  cardContainer: {
+    position: 'relative',
+    marginTop: 8,
+    marginBottom: 4,
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  businessNameHeader: {
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
+  businessNameText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  cardTitle: {
+    color: '#1a1a1a',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+    lineHeight: 22,
+  },
+  cardTime: {
+    color: '#666',
+    fontSize: 13,
+    fontWeight: '500',
+    letterSpacing: 0.5,
+  },
+  saveButton: {
+    padding: 12,
+  },
+  saveIcon: {
+    fontSize: 22,
+    color: '#FFD700',
+  },
+  captionContainer: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingVertical: 5,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  captionContent: {
+    flex: 1,
+    marginRight: 16,
+  },
+  videoContainer: {
+    position: 'relative',
+    borderRadius: 0,
+    overflow: 'hidden',
+  },
+  soundToggle: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  soundIcon: {
+    fontSize: 16,
+    color: '#000',
+    fontWeight: '700',
+  },
+  loadMoreButton: {
+    margin: 16,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  loadMoreButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  loadingMore: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  loadingMoreText: {
+    color: '#fff',
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: '500',
+    opacity: 0.9,
+  },
+  backButton: {
+    position: 'absolute',
+    left: 16,
+    padding: 12,
+    zIndex: 1,
+  },
+  backIcon: {
+    fontSize: 26,
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+});

@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// Firebase Storage Rules for Byron Bay Events App
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow authenticated users to upload and read media files
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+} 

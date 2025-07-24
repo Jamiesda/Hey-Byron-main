@@ -1,4 +1,5 @@
 // app/_layout.tsx
+// Updated without ErrorBoundary
 
 import { Asset } from 'expo-asset';
 import { Slot } from 'expo-router';

@@ -130,7 +130,8 @@ export default function CalendarScreen() {
       resizeMode="repeat"
     >
       <LinearGradient 
-        colors={['rgb(16, 78, 78)', 'rgb(30, 120, 120)']} 
+        colors={['rgba(255, 255, 255, 0.96)', 
+  'rgb(30, 120, 120)']} 
         style={StyleSheet.absoluteFillObject}
       />
       

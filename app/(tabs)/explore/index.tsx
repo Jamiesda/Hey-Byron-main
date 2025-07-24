@@ -1,4 +1,4 @@
-// app/(tabs)/explore/index.tsx - Firebase Version with Distance Calculations
+/// app/(tabs)/explore/index.tsx - Firebase Version with Distance Calculations
 // @ts-nocheck
 
 import { Ionicons } from '@expo/vector-icons';
@@ -71,46 +71,50 @@ export default function ExploreScreen() {
   const [searchText, setSearchText] = useState('');
   const [businessList, setBusinessList] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false); // CHANGE 1: Add error state
   const [userLocation, setUserLocation] = useState<{latitude: number; longitude: number} | null>(null);
   const [locationLoading, setLocationLoading] = useState(true);
 
   // NEW: Load businesses from Firebase
   useEffect(() => {
-    const loadBusinessesFromFirebase = async () => {
-      try {
-        console.log('Loading businesses from Firebase...');
-        const businessesCollection = collection(db, 'businesses');
-        const businessSnapshot = await getDocs(businessesCollection);
-        
-        const businesses: Business[] = [];
-        businessSnapshot.forEach((doc) => {
-          const data = doc.data();
-          businesses.push({
-            id: doc.id,
-            name: data.name || '',
-            address: data.address || '',
-            description: data.description || '',
-            tags: data.tags || [],
-            website: data.website || '',
-            socialLinks: data.socialLinks || [],
-            image: data.image || undefined,
-            coordinates: data.coordinates || undefined,
-          });
-        });
-        
-        console.log(`Loaded ${businesses.length} businesses from Firebase`);
-        setBusinessList(businesses);
-      } catch (error) {
-        console.error('Error loading businesses from Firebase:', error);
-        // Fallback: could load from AsyncStorage here if needed
-        setBusinessList([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadBusinessesFromFirebase();
+    loadBusinesses(); // CHANGE 2: Extract to function for retry
   }, []);
+
+  // CHANGE 3: Extract loading function for retry
+  const loadBusinesses = async () => {
+    try {
+      setLoading(true);
+      setError(false); // Reset error state
+      console.log('Loading businesses from Firebase...');
+      const businessesCollection = collection(db, 'businesses');
+      const businessSnapshot = await getDocs(businessesCollection);
+      
+      const businesses: Business[] = [];
+      businessSnapshot.forEach((doc) => {
+        const data = doc.data();
+        businesses.push({
+          id: doc.id,
+          name: data.name || '',
+          address: data.address || '',
+          description: data.description || '',
+          tags: data.tags || [],
+          website: data.website || '',
+          socialLinks: data.socialLinks || [],
+          image: data.image || undefined,
+          coordinates: data.coordinates || undefined,
+        });
+      });
+      
+      console.log(`Loaded ${businesses.length} businesses from Firebase`);
+      setBusinessList(businesses);
+    } catch (error) {
+      console.error('Error loading businesses from Firebase:', error);
+      setError(true); // CHANGE 4: Set error instead of empty array
+      // Keep existing businessList if this is a retry
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // NEW: Get user location for distance calculations
   useEffect(() => {
@@ -207,6 +211,20 @@ export default function ExploreScreen() {
   );
 
   const renderEmptyState = () => {
+    // CHANGE 5: Add error state handling
+    if (error && !loading) {
+      return (
+        <View style={styles.emptyState}>
+          <Ionicons name="alert-circle-outline" size={64} color="#FF6B6B" />
+          <Text style={styles.emptyTitle}>Something went wrong</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadBusinesses}>
+            <Ionicons name="refresh-outline" size={20} color="#000" style={{ marginRight: 8 }} />
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
     if (loading) {
       return (
         <View style={styles.emptyState}>
@@ -474,5 +492,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     fontWeight: '500',
+  },
+  // CHANGE 6: Add retry button styles (only addition to styles)
+  retryButton: {
+    backgroundColor: 'rgba(194, 164, 120, 1)',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  retryButtonText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

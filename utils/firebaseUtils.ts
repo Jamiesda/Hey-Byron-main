@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
 import { db } from '../firebaseConfig';
+import { handleFirebaseError } from './errorHandling'; // CHANGE 1: ADD THIS IMPORT
 
 // Initialize Firebase Storage
 const storage = getStorage();
@@ -582,6 +583,6 @@ export const loadEventsAndBusinesses = async (): Promise<{
     return { events, businesses };
   } catch (error) {
     console.error('❌ Error loading events and businesses from Firebase:', error);
-    throw new Error('Please check your internet connection.');
+    throw new Error(handleFirebaseError(error)); // CHANGE 2: USE SMART ERROR HANDLER
   }
 };

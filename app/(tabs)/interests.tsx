@@ -37,7 +37,7 @@ const DEFAULT_DISTANCE_INDEX = 1; // 1km
 
 // UPDATED GRADIENT COLORS - Teal/dark green gradient like ChatGPT
 const GRADIENT_COLORS = [
-  'rgb(16, 78, 78)', 
+  'rgba(255, 255, 255, 0.96)', 
   'rgb(30, 120, 120)'
 ] as const;
 
@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)', // Light text for dark background
+    color: 'rgba(0, 0, 0, 0.8)', // Light text for dark background
     textAlign: 'center',
     fontWeight: '500',
     lineHeight: 20,
@@ -566,25 +566,25 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   selectAllButton: {
-    backgroundColor: 'rgba(255,255,255,0.15)', // Light button for dark background
+    backgroundColor: 'rgba(0, 0, 0, 0.09)', // Light button for dark background
     paddingVertical: 6,
     paddingHorizontal: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: 'rgba(0, 0, 0, 0.59)',
   },
   selectAllText: {
     fontSize: 12,
-    color: '#fff', // White text for dark background
+    color: 'rgb(0, 0, 0)', // White text for dark background
     fontWeight: '600',
   },
   locationToggleContainer: {
-    backgroundColor: 'rgba(255,255,255,0.15)', // Light button for dark background
+    backgroundColor: 'rgba(0, 0, 0, 0.09)', // Light button for dark background
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: 'rgba(0, 0, 0, 0.59)',
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -593,7 +593,7 @@ const styles = StyleSheet.create({
   },
   locationToggleText: {
     fontSize: 12,
-    color: '#fff', // White text for dark background
+    color: 'rgb(0, 0, 0)', // White text for dark background
     fontWeight: '600',
     marginRight: 6,
   },

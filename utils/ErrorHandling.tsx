@@ -1,81 +1,100 @@
-// utils/ErrorHandling.tsx - New file to create
-// Error handling components for the app
+// utils/errorHandling.tsx
+// Error handling components and utilities
 
 import { Ionicons } from '@expo/vector-icons';
-import NetInfo from '@react-native-community/netinfo';
-import React, { Component, ReactNode, useEffect, useState } from 'react';
+import React, { ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-// 1. NETWORK CONNECTIVITY HOOK
-export const useNetworkStatus = () => {
-  const [isConnected, setIsConnected] = useState<boolean | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+// ==========================================
+// HELPER FUNCTIONS
+// ==========================================
 
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(state => {
-      setIsConnected(state.isConnected);
-      setIsLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  return { isConnected, isLoading };
+// Enhanced error detection helper
+export const isConnectionError = (error: any): boolean => {
+  const errorMessage = error?.message?.toLowerCase() || '';
+  const errorCode = error?.code?.toLowerCase() || '';
+  
+  return (
+    errorMessage.includes('network') ||
+    errorMessage.includes('connection') ||
+    errorMessage.includes('timeout') ||
+    errorMessage.includes('offline') ||
+    errorMessage.includes('fetch') ||
+    errorCode.includes('network') ||
+    errorCode.includes('unavailable') ||
+    errorCode === 'auth/network-request-failed' ||
+    error?.name === 'NetworkError'
+  );
 };
 
-// 2. ERROR BOUNDARY COMPONENT
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
-}
-
-interface ErrorBoundaryProps {
-  children: ReactNode;
-  fallback?: ReactNode;
-}
-
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false, error: null };
+// Improved error message helper
+export const getErrorMessage = (error: any, operation: string): string => {
+  if (isConnectionError(error)) {
+    return `Could not ${operation}. Please check your connection and try again.`;
   }
+  
+  // Generic fallback for other errors
+  return `Failed to ${operation}. Please try again.`;
+};
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error };
+// Enhanced Firebase error handler
+export const handleFirebaseError = (error: any): string => {
+  console.error('Firebase Error:', error);
+  
+  // Network/connection errors
+  if (isConnectionError(error) || error.code === 'unavailable') {
+    return 'No internet connection. Please check your connection and try again.';
   }
-
-  componentDidCatch(error: Error, errorInfo: any) {
-    console.error('Error Boundary caught an error:', error, errorInfo);
+  
+  // Permission errors
+  if (error.code === 'permission-denied') {
+    return 'Access denied. You may not have permission to view this content.';
   }
-
-  render() {
-    if (this.state.hasError) {
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
-
-      return (
-        <View style={errorStyles.errorContainer}>
-          <Ionicons name="warning-outline" size={48} color="#FF6B6B" />
-          <Text style={errorStyles.errorTitle}>Something went wrong</Text>
-          <Text style={errorStyles.errorMessage}>
-            The app encountered an unexpected error. Please restart the app.
-          </Text>
-          <TouchableOpacity
-            style={errorStyles.retryButton}
-            onPress={() => this.setState({ hasError: false, error: null })}
-          >
-            <Text style={errorStyles.retryButtonText}>Try Again</Text>
-          </TouchableOpacity>
-        </View>
-      );
+  
+  // Not found errors
+  if (error.code === 'not-found') {
+    return 'Content not found. It may have been deleted or moved.';
+  }
+  
+  // Quota exceeded
+  if (error.code === 'resource-exhausted') {
+    return 'Service temporarily busy. Please try again in a few minutes.';
+  }
+  
+  // Authentication errors
+  if (error.code?.startsWith('auth/')) {
+    return 'Authentication error. Please try signing in again.';
+  }
+  
+  // Storage errors
+  if (error.code?.startsWith('storage/')) {
+    if (error.code === 'storage/object-not-found') {
+      return 'File not found. It may have been deleted.';
     }
-
-    return this.props.children;
+    if (error.code === 'storage/quota-exceeded') {
+      return 'Storage limit reached. Please try again later.';
+    }
+    return 'File upload failed. Please try again.';
   }
-}
+  
+  // Generic Firebase errors
+  if (error.code) {
+    return `Service temporarily unavailable. Please try again later. (${error.code})`;
+  }
+  
+  // Network fetch errors
+  if (error?.name === 'TypeError' && error.message?.includes('fetch')) {
+    return 'Connection failed. Please check your internet and try again.';
+  }
+  
+  // Generic fallback
+  return 'Something went wrong. Please try again later.';
+};
 
-// 3. NETWORK ERROR COMPONENT
+// ==========================================
+// REACT COMPONENTS
+// ==========================================
+
 interface NetworkErrorProps {
   onRetry: () => void;
   message?: string;
@@ -85,18 +104,17 @@ export const NetworkError: React.FC<NetworkErrorProps> = ({
   onRetry, 
   message = "No internet connection. Please check your connection and try again." 
 }) => (
-  <View style={errorStyles.errorContainer}>
+  <View style={styles.errorContainer}>
     <Ionicons name="wifi-outline" size={48} color="#FF6B6B" />
-    <Text style={errorStyles.errorTitle}>Connection Problem</Text>
-    <Text style={errorStyles.errorMessage}>{message}</Text>
-    <TouchableOpacity style={errorStyles.retryButton} onPress={onRetry}>
+    <Text style={styles.errorTitle}>Connection Problem</Text>
+    <Text style={styles.errorMessage}>{message}</Text>
+    <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
       <Ionicons name="refresh-outline" size={20} color="#000" style={{ marginRight: 8 }} />
-      <Text style={errorStyles.retryButtonText}>Retry</Text>
+      <Text style={styles.retryButtonText}>Retry</Text>
     </TouchableOpacity>
   </View>
 );
 
-// 4. LOADING WITH ERROR STATE COMPONENT
 interface LoadingWithErrorProps {
   loading: boolean;
   error: string | null;
@@ -118,9 +136,9 @@ export const LoadingWithError: React.FC<LoadingWithErrorProps> = ({
 
   if (loading) {
     return (
-      <View style={errorStyles.loadingContainer}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="rgba(194, 164, 120, 1)" />
-        <Text style={errorStyles.loadingText}>{loadingMessage}</Text>
+        <Text style={styles.loadingText}>{loadingMessage}</Text>
       </View>
     );
   }
@@ -128,7 +146,6 @@ export const LoadingWithError: React.FC<LoadingWithErrorProps> = ({
   return <>{children}</>;
 };
 
-// 5. VIDEO ERROR FALLBACK COMPONENT
 interface VideoErrorFallbackProps {
   onRetry: () => void;
   imageUri?: string;
@@ -140,48 +157,23 @@ export const VideoErrorFallback: React.FC<VideoErrorFallbackProps> = ({
   imageUri, 
   title = "Video Error" 
 }) => (
-  <View style={errorStyles.videoErrorContainer}>
-    <View style={errorStyles.videoErrorOverlay}>
+  <View style={styles.videoErrorContainer}>
+    <View style={styles.videoErrorOverlay}>
       <Ionicons name="play-circle-outline" size={48} color="#fff" />
-      <Text style={errorStyles.videoErrorTitle}>Video unavailable</Text>
-      <Text style={errorStyles.videoErrorMessage}>Tap to retry</Text>
+      <Text style={styles.videoErrorTitle}>Video unavailable</Text>
+      <Text style={styles.videoErrorMessage}>Tap to retry</Text>
     </View>
-    <TouchableOpacity style={errorStyles.videoRetryButton} onPress={onRetry}>
+    <TouchableOpacity style={styles.videoRetryButton} onPress={onRetry}>
       <Ionicons name="refresh-outline" size={20} color="#fff" />
     </TouchableOpacity>
   </View>
 );
 
-// 6. ENHANCED FIREBASE ERROR HANDLER
-export const handleFirebaseError = (error: any): string => {
-  console.error('Firebase Error:', error);
-  
-  // Network errors
-  if (error.code === 'unavailable' || error.message?.includes('network')) {
-    return 'No internet connection. Please check your connection and try again.';
-  }
-  
-  // Permission errors
-  if (error.code === 'permission-denied') {
-    return 'Access denied. Please check your permissions.';
-  }
-  
-  // Not found errors
-  if (error.code === 'not-found') {
-    return 'Requested data not found. It may have been deleted.';
-  }
-  
-  // Generic Firebase errors
-  if (error.code) {
-    return `Service temporarily unavailable (${error.code}). Please try again later.`;
-  }
-  
-  // Unknown errors
-  return 'Something went wrong. Please try again later.';
-};
-
+// ==========================================
 // STYLES
-const errorStyles = StyleSheet.create({
+// ==========================================
+
+const styles = StyleSheet.create({
   errorContainer: {
     flex: 1,
     justifyContent: 'center',

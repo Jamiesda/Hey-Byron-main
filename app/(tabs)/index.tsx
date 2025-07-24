@@ -27,6 +27,7 @@ import {
 import { filterEventsByDistance, initializeLocationServices } from '../../utils/locationUtils';
 
 // FIREBASE IMPORTS
+import { handleFirebaseError } from '../../utils/errorHandling';
 import {
   loadEventsAndBusinesses
 } from '../../utils/firebaseUtils';
@@ -72,7 +73,7 @@ const CONTENT_PADDING_TOP = 35;
 
 // Dark teal gradient
 const GRADIENT_COLORS = [
-  'rgb(16, 78, 78)', 
+  'rgba(255, 255, 255, 0.96)', 
   'rgb(30, 120, 120)'
 ] as const;
 
@@ -944,8 +945,7 @@ export default function WhatsOnScreen() {
       
     } catch (error) {
       console.error('❌ Error loading events:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Oops! Our server is down. Please try again later.';
-      dispatch({ type: 'SET_FIREBASE_ERROR', payload: errorMessage });
+      const errorMessage = handleFirebaseError(error);      dispatch({ type: 'SET_FIREBASE_ERROR', payload: errorMessage });
     } finally {
       loadingRef.current = false;
     }

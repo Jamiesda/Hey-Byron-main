@@ -1,10 +1,6 @@
 /**
- * Import function triggers from their respective submodules:
- *
- * const {onCall} = require("firebase-functions/v2/https");
- * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
+ * Complete Updated Cloud Function with hybrid filename processing
+ * functions/index.js - FULL VERSION
  */
 
 const {setGlobalOptions} = require("firebase-functions");
@@ -56,6 +52,61 @@ async function testFirestoreAccess() {
   } catch (error) {
     logger.error("❌ Firestore access failed:", error.message);
     return false;
+  }
+}
+
+/**
+ * Extract eventId from hybrid filename for reliable event lookup
+ */
+function extractEventIdFromFilename(filePath) {
+  try {
+    const filename = path.parse(filePath).name; // Get filename without extension
+    logger.info("📋 Extracting eventId from filename:", { filename, filePath });
+    
+    // Check if it's a hybrid filename (eventId_timestamp format)
+    if (filename.includes('_')) {
+      const parts = filename.split('_');
+      
+      // For hybrid format: businessId_timestamp1_timestamp2
+      // Take the first two parts as eventId (businessId_timestamp1)
+      if (parts.length >= 2) {
+        const eventId = `${parts[0]}_${parts[1]}`;
+        logger.info("✅ Extracted eventId from hybrid filename:", { eventId, filename });
+        return eventId;
+      }
+    }
+    
+    // Fallback: use full filename as eventId for backwards compatibility
+    logger.info("⚠️ Using full filename as eventId (legacy format):", { eventId: filename });
+    return filename;
+  } catch (error) {
+    logger.error("❌ Error extracting eventId from filename:", error);
+    return null;
+  }
+}
+
+/**
+ * Find pending event using extracted eventId - NO RACE CONDITIONS
+ */
+async function findPendingEventByEventId(eventId) {
+  try {
+    logger.info("🔍 Looking for pending event by eventId:", { eventId });
+    
+    const pendingEventDoc = await db.collection('pending-events').doc(eventId).get();
+    
+    if (pendingEventDoc.exists) {
+      logger.info("✅ Found pending event by eventId:", { eventId });
+      return {
+        doc: pendingEventDoc,
+        data: pendingEventDoc.data()
+      };
+    } else {
+      logger.warn("❌ No pending event found for eventId:", { eventId });
+      return null;
+    }
+  } catch (error) {
+    logger.error("❌ Error finding pending event by eventId:", { error: error.message, eventId });
+    return null;
   }
 }
 
@@ -180,9 +231,33 @@ exports.processAustraliaEventVideo = onObjectFinalized({
     sizeInMB: (fileSize / 1024 / 1024).toFixed(2) + "MB"
   });
 
+  // STEP 1: Extract eventId from filename and find pending event - NO RACE CONDITIONS
+  const originalName = path.parse(filePath).name;
+  const eventId = extractEventIdFromFilename(filePath);
+
+  if (!eventId) {
+    logger.error("❌ Could not extract eventId from filename:", { filePath });
+    return;
+  }
+
+  logger.info("📋 Extracted eventId from filename:", { filePath, eventId });
+
+  const pendingEventResult = await findPendingEventByEventId(eventId);
+
+  if (!pendingEventResult) {
+    logger.error("❌ No pending event found for eventId:", { eventId, filePath });
+    return;
+  }
+
+  const { doc: pendingEventDoc, data: pendingEventData } = pendingEventResult;
+  logger.info("✅ Found matching pending event:", {
+    eventId: pendingEventDoc.id,
+    filename: path.parse(filePath).name
+  });
+
   // Create temporary file paths
   const tempDir = os.tmpdir();
-  const tempInputPath = path.join(tempDir, `input_${Date.now()}${fileExtension}`);
+  const tempInputPath = path.join(tempDir, `input_${Date.now()}${path.extname(filePath)}`);
   const tempOutputPath = path.join(tempDir, `output_${Date.now()}.mp4`);
 
   try {
@@ -206,8 +281,7 @@ exports.processAustraliaEventVideo = onObjectFinalized({
 
     // Only upload if compression actually reduced file size significantly
     if (compressedSize < fileSize * 0.9) { // At least 10% reduction
-      // Create compressed filename (don't overwrite original)
-      const originalName = path.parse(filePath).name;
+      // Create compressed filename using original name
       const compressedFilePath = `events/${originalName}_compressed.mp4`;
       
       logger.info("Uploading compressed video to new location...");
@@ -236,53 +310,6 @@ exports.processAustraliaEventVideo = onObjectFinalized({
       
       // Move pending event to live events with compressed URL
       const compressedUrl = `https://firebasestorage.googleapis.com/v0/b/${event.data.bucket}/o/events%2F${originalName}_compressed.mp4?alt=media`;
-      
-      // STEP 1: Query pending events (with individual error handling)
-      let pendingEventDoc = null;
-      let pendingEventData = null;
-      
-      try {
-        logger.info("🔍 STEP 1: Attempting to query pending-events collection...");
-        const pendingEventsRef = db.collection('pending-events');
-        const allPendingEvents = await pendingEventsRef.get();
-        
-        logger.info("✅ STEP 1: Successfully queried pending-events collection:", {
-          totalPendingEvents: allPendingEvents.docs.length
-        });
-        
-        // Find the pending event with video URL containing our original filename
-        const originalFileName = `${originalName}.${path.extname(filePath).substring(1)}`;
-        
-        for (const doc of allPendingEvents.docs) {
-          const data = doc.data();
-          if (data.video && data.video.includes(originalFileName)) {
-            pendingEventDoc = doc;
-            pendingEventData = data;
-            break;
-          }
-        }
-        
-        if (pendingEventDoc) {
-          logger.info("✅ STEP 1: Found matching pending event:", {
-            eventId: pendingEventDoc.id,
-            originalFileName: originalFileName,
-            videoUrl: pendingEventData.video
-          });
-        } else {
-          logger.info("❌ STEP 1: No pending event found for video filename:", {
-            originalFileName: originalFileName,
-            searchedInPendingEvents: allPendingEvents.docs.length
-          });
-          return; // Exit early if no pending event found
-        }
-      } catch (queryError) {
-        logger.error("❌ STEP 1: Failed to query pending-events collection:", {
-          error: queryError.message,
-          code: queryError.code,
-          stack: queryError.stack
-        });
-        return; // Exit early if query fails
-      }
       
       // STEP 2: Write to events collection (with individual error handling)
       let liveEventCreated = false;

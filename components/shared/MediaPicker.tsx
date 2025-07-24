@@ -1,8 +1,8 @@
-// components/shared/MediaPicker.tsx
-// Complete updated version with hybrid filename support - FIXED SYNTAX
+// components/shared/MediaPicker.tsx - Fixed video thumbnail display
 // @ts-nocheck
 
 import { Ionicons } from '@expo/vector-icons';
+import { ResizeMode, Video } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import {
@@ -28,7 +28,7 @@ export interface MediaPickerProps {
   maxSizeBytes?: number;
   allowVideo?: boolean;
   allowImage?: boolean;
-  eventId?: string; // NEW: For hybrid filename generation
+  eventId?: string;
 }
 
 export default function MediaPicker({
@@ -39,18 +39,15 @@ export default function MediaPicker({
   onUploadError,
   onUploadEnd,
   onMediaDeleted,
-  maxSizeBytes = 300 * 1024 * 1024, // 300MB default
+  maxSizeBytes = 300 * 1024 * 1024,
   allowVideo = true,
   allowImage = true,
-  eventId, // NEW: Optional eventId for hybrid filenames
+  eventId,
 }: MediaPickerProps) {
   const [isUploading, setIsUploading] = useState(false);
 
-  // Smart delete function (simplified for this implementation)
   const smartDeleteMedia = async (mediaUrl: string): Promise<boolean> => {
     try {
-      // This would check usage and delete if safe
-      // Simplified for this example
       console.log('Smart deleting media:', mediaUrl);
       return true;
     } catch (error) {
@@ -59,13 +56,11 @@ export default function MediaPicker({
     }
   };
 
-  // Enhanced upload function with hybrid filename support
   const uploadMedia = async (uri: string) => {
     try {
       setIsUploading(true);
       onUploadStart?.();
       
-      // Smart delete old media when replacing
       if (currentMedia && currentMedia.includes('firebasestorage.googleapis.com')) {
         try {
           console.log('🔄 Replacing media - checking if safe to delete old file...');
@@ -83,12 +78,9 @@ export default function MediaPicker({
       const ext = uri.split('.').pop() || (isVideo(uri) ? 'mp4' : 'jpg');
       const baseFilename = `event_${Date.now()}.${ext}`;
       
-      // Use enhanced upload function with eventId for hybrid filename
       const url = await uploadToFirebaseStorage(uri, baseFilename, eventId);
       
-      // Simulate progress for UI feedback
       onUploadProgress?.(100);
-      
       onUploadComplete?.(url);
       console.log('✅ Media upload completed successfully');
       
@@ -101,7 +93,6 @@ export default function MediaPicker({
     }
   };
 
-  // Handle media deletion
   const handleDeleteMedia = async () => {
     if (!currentMedia) return;
 
@@ -128,17 +119,14 @@ export default function MediaPicker({
     );
   };
 
-  // Handle media picker selection
   const pickMedia = async () => {
     try {
-      // Request permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Please allow access to your photo library');
         return;
       }
 
-      // Configure media types
       let mediaTypes: ImagePicker.MediaTypeOptions = ImagePicker.MediaTypeOptions.All;
       if (allowVideo && !allowImage) {
         mediaTypes = ImagePicker.MediaTypeOptions.Videos;
@@ -146,19 +134,17 @@ export default function MediaPicker({
         mediaTypes = ImagePicker.MediaTypeOptions.Images;
       }
 
-      // Launch picker
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes,
         allowsEditing: true,
         aspect: [16, 9],
         quality: 0.8,
-        videoMaxDuration: 60, // 60 seconds max
+        videoMaxDuration: 60,
       });
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
         
-        // Check file size
         if (asset.fileSize && asset.fileSize > maxSizeBytes) {
           const maxSizeMB = Math.round(maxSizeBytes / (1024 * 1024));
           Alert.alert(
@@ -178,46 +164,36 @@ export default function MediaPicker({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Event Media</Text>
+      <Text style={styles.label}>Event Media (Optional)</Text>
       
       {currentMedia ? (
         <View style={styles.mediaContainer}>
-          {/* Show current media */}
           {isVideo(currentMedia) ? (
-            <View style={styles.videoPlaceholder}>
-              <Ionicons name="videocam" size={40} color="#fff" />
-              <Text style={styles.videoText}>Video Selected</Text>
-            </View>
+            <Video 
+              style={styles.mediaPreview}
+              source={{ uri: currentMedia }}
+              shouldPlay={false}
+              useNativeControls={false}
+              resizeMode={ResizeMode.COVER}
+              isLooping={false}
+            />
           ) : (
             <Image source={{ uri: currentMedia }} style={styles.mediaPreview} />
           )}
           
-          {/* Media actions */}
           <View style={styles.mediaActions}>
-            <TouchableOpacity 
-              style={styles.replaceButton}
-              onPress={pickMedia}
-              disabled={isUploading}
-            >
-              <Ionicons name="camera" size={20} color="#fff" />
+            <TouchableOpacity style={styles.replaceButton} onPress={pickMedia}>
+              <Ionicons name="camera-outline" size={16} color="#fff" />
               <Text style={styles.replaceButtonText}>Replace</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity 
-              style={styles.deleteButton}
-              onPress={handleDeleteMedia}
-              disabled={isUploading}
-            >
-              <Ionicons name="trash" size={20} color="#ff6b6b" />
+            <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteMedia}>
+              <Ionicons name="trash-outline" size={18} color="#ff6b6b" />
             </TouchableOpacity>
           </View>
         </View>
       ) : (
-        <TouchableOpacity 
-          style={styles.uploadButton}
-          onPress={pickMedia}
-          disabled={isUploading}
-        >
+        <TouchableOpacity style={styles.uploadButton} onPress={pickMedia} disabled={isUploading}>
           {isUploading ? (
             <View style={styles.uploadingContainer}>
               <ActivityIndicator size="small" color="#fff" />
@@ -237,16 +213,6 @@ export default function MediaPicker({
           )}
         </TouchableOpacity>
       )}
-      
-      {/* Upload tips */}
-      <View style={styles.tipsContainer}>
-        <Text style={styles.tipsTitle}>📱 Tips:</Text>
-        <Text style={styles.tipsText}>
-          • Images: JPG, PNG up to 2MB{'\n'}
-          • Videos: MP4, MOV up to 300MB{'\n'}
-          • Videos auto-compressed by our servers
-        </Text>
-      </View>
     </View>
   );
 }
@@ -270,22 +236,6 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.1)',
-  },
-  videoPlaceholder: {
-    width: '100%',
-    height: 200,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  videoText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
-    marginTop: 8,
   },
   mediaActions: {
     flexDirection: 'row',
@@ -350,24 +300,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
     textAlign: 'center',
-  },
-  tipsContainer: {
-    backgroundColor: 'rgba(255, 193, 7, 0.1)',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 193, 7, 0.3)',
-  },
-  tipsTitle: {
-    color: '#ffc107',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  tipsText: {
-    color: 'rgba(255, 193, 7, 0.9)',
-    fontSize: 12,
-    lineHeight: 18,
   },
 });

@@ -1,5 +1,4 @@
-// app/admin/events-dashboard.tsx
-// Complete updated version with hybrid filename processing and enhanced user messaging
+// app/admin/events-dashboard.tsx - Updated with your requested changes
 // @ts-nocheck
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -7,18 +6,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    ImageBackground,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Image,
+  ImageBackground,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 // Import extracted utilities
@@ -28,20 +27,20 @@ import { getErrorMessage } from '../../utils/errorHandling';
 
 // Import Firebase functions
 import {
-    FirebaseEvent,
-    deleteEventFromFirebase,
-    deletePendingEvent,
-    generateRecurringEvents,
-    loadEventsForBusiness,
-    loadPendingEventsForBusiness,
-    saveEventToFirebase,
-    savePendingEvent,
-    saveRecurringEventsToFirebase,
-    uploadToFirebaseStorage
+  FirebaseEvent,
+  deleteEventFromFirebase,
+  deletePendingEvent,
+  generateRecurringEvents,
+  loadEventsForBusiness,
+  loadPendingEventsForBusiness,
+  saveEventToFirebase,
+  savePendingEvent,
+  saveRecurringEventsToFirebase,
+  uploadToFirebaseStorage
 } from '../../utils/firebaseUtils';
 
 // Import components
-import { EventForm, EventFormData, EventsList, UploadState } from '../../components/events';
+import { EventForm, EventFormData, UploadState } from '../../components/events';
 
 const backgroundPattern = require('../../assets/background.png');
 const heyByronBlackLogo = require('../../assets/heybyronhorizontallogo.png');
@@ -243,11 +242,10 @@ export default function EventsDashboard() {
       // Reset form and reload data
       resetEventForm();
       await loadEventsData(code!);
-
+      
     } catch (error) {
       console.error('Error saving event:', error);
-      const errorMsg = getErrorMessage(error, 'save event');
-      Alert.alert('Save Failed', errorMsg);
+      Alert.alert('Error', getErrorMessage(error));
     } finally {
       setSavingEvent(false);
     }
@@ -260,7 +258,7 @@ export default function EventsDashboard() {
       link: event.link || '',
       interests: event.tags,
       date: new Date(event.date),
-      image: event.image || event.video,
+      image: event.image,
       isRecurring: false,
       recurrenceType: undefined,
       recurrenceCount: undefined,
@@ -269,14 +267,7 @@ export default function EventsDashboard() {
     setEditingEventId(event.id);
   };
 
-  const deleteEvent = async (eventId: string) => {
-    // Add validation to ensure eventId exists
-    if (!eventId) {
-      console.error('No event ID provided for deletion');
-      Alert.alert('Error', 'Cannot delete event: No event ID found');
-      return;
-    }
-
+  const deleteEvent = (eventId: string) => {
     Alert.alert(
       'Delete Event',
       'Are you sure you want to delete this event?',
@@ -301,14 +292,7 @@ export default function EventsDashboard() {
     );
   };
 
-  const deletePendingEventAction = async (eventId: string) => {
-    // Add validation to ensure eventId exists
-    if (!eventId) {
-      console.error('No event ID provided for deletion');
-      Alert.alert('Error', 'Cannot delete event: No event ID found');
-      return;
-    }
-
+  const deletePendingEventAction = (eventId: string) => {
     Alert.alert(
       'Delete Pending Event',
       'Are you sure you want to delete this pending event?',
@@ -363,6 +347,35 @@ export default function EventsDashboard() {
     router.push('/admin/dashboard');
   };
 
+  // Helper functions for simplified events list
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-AU', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getStatusIndicator = (event: FirebaseEvent, isPending: boolean) => {
+    if (isPending) {
+      return '🟡'; // Yellow for processing/pending
+    }
+    
+    if (event.image && !event.imageProcessed) {
+      return '🟡'; // Yellow for processing
+    }
+    
+    if (event.imageProcessingFailed) {
+      return '🔴'; // Red for failed
+    }
+    
+    return '🟢'; // Green for ready
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -371,6 +384,12 @@ export default function EventsDashboard() {
       </View>
     );
   }
+
+  // Combine all events and sort by date (newest first)
+  const allEvents = [
+    ...events.map(e => ({ ...e, isPending: false })),
+    ...pendingEvents.map(e => ({ ...e, isPending: true }))
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <ImageBackground source={backgroundPattern} style={styles.background} resizeMode="repeat">
@@ -397,7 +416,71 @@ export default function EventsDashboard() {
           >
             <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
               
-              {/* Event Form */}
+              {/* YOUR EVENTS SECTION - NOW ON TOP */}
+              <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>Your Events</Text>
+                  <View style={styles.eventCountBadge}>
+                    <Text style={styles.eventCountText}>{allEvents.length}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.eventsListContainer}>
+                  {allEvents.length === 0 ? (
+                    <View style={styles.emptyState}>
+                      <Text style={styles.emptyStateIcon}>📅</Text>
+                      <Text style={styles.emptyStateText}>No events yet</Text>
+                      <Text style={styles.emptyStateSubtext}>
+                        Create your first event to start attracting customers!
+                      </Text>
+                    </View>
+                  ) : (
+                    <ScrollView 
+                      style={styles.eventsList} 
+                      showsVerticalScrollIndicator={false}
+                      nestedScrollEnabled={true}
+                    >
+                      {allEvents.map((event) => (
+                        <View key={`${event.id}-${event.isPending ? 'pending' : 'live'}`} style={styles.eventCard}>
+                          <View style={styles.eventContent}>
+                            <View style={styles.eventHeader}>
+                              <View style={styles.eventTitleRow}>
+                                <Text style={styles.statusIndicator}>
+                                  {getStatusIndicator(event, event.isPending)}
+                                </Text>
+                                <Text style={styles.eventTitle} numberOfLines={2}>
+                                  {event.title}
+                                </Text>
+                              </View>
+                              <Text style={styles.eventDate}>
+                                {formatDate(event.date)}
+                              </Text>
+                            </View>
+                            
+                            <View style={styles.eventActions}>
+                              <TouchableOpacity
+                                style={styles.editEventButton}
+                                onPress={() => editEvent(event)}
+                              >
+                                <Text style={styles.editEventButtonText}>Edit</Text>
+                              </TouchableOpacity>
+                              
+                              <TouchableOpacity
+                                style={styles.deleteEventButton}
+                                onPress={() => event.isPending ? deletePendingEventAction(event.id) : deleteEvent(event.id)}
+                              >
+                                <Text style={styles.deleteEventButtonText}>×</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  )}
+                </View>
+              </View>
+
+              {/* Event Form - SIMPLIFIED WITHOUT HEADER */}
               <EventForm
                 eventData={eventData}
                 onSave={saveEvent}
@@ -408,15 +491,6 @@ export default function EventsDashboard() {
                 onDataChange={handleEventDataChange}
                 onMediaSelected={handleEventMediaSelected}
                 editingMode={!!editingEventId}
-              />
-
-              {/* Events List */}
-              <EventsList
-                events={events}
-                pendingEvents={pendingEvents}
-                onEdit={editEvent}
-                onDelete={deleteEvent}
-                onDeletePending={deletePendingEventAction}
               />
 
             </ScrollView>
@@ -467,5 +541,140 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
     paddingTop: 20,
+  },
+  // Events list styles
+  card: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  cardTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.3,
+  },
+  eventCountBadge: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    minWidth: 32,
+    alignItems: 'center',
+  },
+  eventCountText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  eventsListContainer: {
+    maxHeight: 400,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyStateText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyStateSubtext: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 14,
+    textAlign: 'center',
+    maxWidth: 250,
+    lineHeight: 20,
+  },
+  eventsList: {
+    maxHeight: 350,
+  },
+  eventCard: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  eventContent: {
+    padding: 16,
+  },
+  eventHeader: {
+    marginBottom: 12,
+  },
+  eventTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+  },
+  statusIndicator: {
+    fontSize: 12,
+    marginRight: 8,
+    marginTop: 2,
+  },
+  eventTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    flex: 1,
+    lineHeight: 22,
+  },
+  eventDate: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '500',
+  },
+  eventActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  editEventButton: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  editEventButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  deleteEventButton: {
+    backgroundColor: 'rgba(255,0,0,0.2)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,0,0,0.3)',
+  },
+  deleteEventButtonText: {
+    color: '#ff6b6b',
+    fontSize: 18,
+    fontWeight: '600',
   },
 });

@@ -1,11 +1,10 @@
-// components/events/EventForm.tsx
-// Event form component with fixed recurring events dropdown
+// components/events/EventForm.tsx - Video tips section completely removed (Fixed syntax)
+// @ts-nocheck
 
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useState } from 'react';
 import {
-  Alert,
   Modal,
   StyleSheet,
   Switch,
@@ -14,7 +13,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import { MAX_VIDEO_SIZE, isVideo } from '../../constants/fileConfig';
+import { MAX_VIDEO_SIZE } from '../../constants/fileConfig';
 import { INTERNAL_OPTIONS } from '../../constants/interestOptions';
 import { LoadingButton, MediaPicker } from '../shared';
 
@@ -25,7 +24,6 @@ export interface EventFormData {
   interests: string[];
   date: Date;
   image?: string;
-  // REPEAT FUNCTIONALITY:
   isRecurring: boolean;
   recurrenceType?: 'daily' | 'weekly' | 'custom';
   recurrenceCount?: number;
@@ -80,104 +78,49 @@ export default function EventForm({
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-AU', {
-      weekday: 'short',
+      weekday: 'long',
       year: 'numeric',
-      month: 'short',
+      month: 'long',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     });
   };
 
-  // Handle frequency selection with optimized state updates
-  const handleFrequencySelect = () => {
-    Alert.alert(
-      'Select Frequency',
-      'Choose how often to repeat this event',
-      [
-        {
-          text: 'Daily',
-          onPress: () => onDataChange({ 
-            recurrenceType: 'daily', 
-            recurrenceCount: 7, 
-            customDates: [] 
-          })
-        },
-        {
-          text: 'Weekly',
-          onPress: () => onDataChange({ 
-            recurrenceType: 'weekly', 
-            recurrenceCount: 4, 
-            customDates: [] 
-          })
-        },
-        {
-          text: 'Custom Dates',
-          onPress: () => onDataChange({ 
-            recurrenceType: 'custom', 
-            recurrenceCount: undefined, 
-            customDates: [eventData.date] 
-          })
-        },
-        { text: 'Cancel', style: 'cancel' }
-      ]
-    );
-  };
-
-  // Get display text for frequency
-  const getFrequencyDisplayText = () => {
-    if (!eventData.recurrenceType) return 'Select frequency...';
-    switch (eventData.recurrenceType) {
-      case 'daily': return 'Daily';
-      case 'weekly': return 'Weekly';
-      case 'custom': return 'Custom Dates';
-      default: return 'Select frequency...';
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    if (selectedDate) {
+      setTempDate(selectedDate);
     }
   };
 
-  // Check if all mandatory fields are filled
+  const handleCustomDateChange = (event: any, selectedDate?: Date) => {
+    if (selectedDate) {
+      setTempCustomDate(selectedDate);
+    }
+  };
+
+  const saveDate = () => {
+    onDataChange({ date: tempDate });
+    setShowDateModal(false);
+  };
+
+  const saveCustomDate = () => {
+    const currentDates = eventData.customDates || [];
+    if (currentDates.length < 10) {
+      onDataChange({
+        customDates: [...currentDates, tempCustomDate].sort((a, b) => a.getTime() - b.getTime())
+      });
+    }
+    setShowCustomDateModal(false);
+  };
+
   const hasMandatoryFields = eventData.title.trim() && 
-                            eventData.interests.length > 0 && 
-                            eventData.date &&
-                            eventData.link.trim() && // Added link as mandatory
-                            // Add recurring validation
+                            eventData.link.trim() && 
+                            eventData.interests.length > 0 &&
                             (!eventData.isRecurring || 
-                             (eventData.isRecurring && eventData.recurrenceType && 
-                              ((eventData.recurrenceType === 'custom' && eventData.customDates && eventData.customDates.length > 0) ||
-                               (eventData.recurrenceType !== 'custom' && eventData.recurrenceCount && eventData.recurrenceCount > 0))));
+                             (eventData.recurrenceType === 'custom' && (eventData.customDates?.length || 0) > 0) ||
+                             (eventData.recurrenceType !== 'custom' && (eventData.recurrenceCount || 0) > 0));
 
-  // Clean event data for Firebase (remove undefined values)
-  const getCleanEventData = () => {
-    const cleanData: any = {
-      title: eventData.title.trim(),
-      caption: eventData.caption.trim() || '',
-      link: eventData.link.trim(), // Now always included since it's mandatory
-      interests: eventData.interests,
-      date: eventData.date,
-      isRecurring: eventData.isRecurring,
-    };
-
-    // Only add optional fields if they have values
-    if (eventData.image) {
-      cleanData.image = eventData.image;
-    }
-
-    if (eventData.isRecurring) {
-      if (eventData.recurrenceType) cleanData.recurrenceType = eventData.recurrenceType;
-      if (eventData.recurrenceCount) cleanData.recurrenceCount = eventData.recurrenceCount;
-      if (eventData.customDates && eventData.customDates.length > 0) {
-        cleanData.customDates = eventData.customDates;
-      }
-    }
-
-    return cleanData;
-  };
-
-  // Button should only be disabled if:
-  // - Currently saving/loading
-  // - Currently uploading new media 
-  // - Has upload error
-  // - Missing mandatory fields
   const isDisabled = loading || 
                      uploadState.isUploading || 
                      !!uploadState.error ||
@@ -189,7 +132,6 @@ export default function EventForm({
         {editingMode ? 'Edit Event' : 'Create New Event'}
       </Text>
 
-      {/* Event Media Picker */}
       <MediaPicker
         onMediaSelected={(url) => {
           onDataChange({ image: url });
@@ -225,7 +167,6 @@ export default function EventForm({
           });
         }}
         onMediaDeleted={() => {
-          // Clear the image from event data when deleted
           onDataChange({ image: undefined });
           onUploadStateChange({
             isComplete: true,
@@ -235,7 +176,6 @@ export default function EventForm({
         showDeleteButton={true}
       />
 
-      {/* Upload Progress Indicator */}
       {uploadState.isUploading && (
         <View style={styles.uploadProgress}>
           <Text style={styles.uploadProgressTitle}>
@@ -255,7 +195,6 @@ export default function EventForm({
         </View>
       )}
 
-      {/* Upload Error Display */}
       {uploadState.error && (
         <View style={styles.uploadError}>
           <Text style={styles.uploadErrorTitle}>⚠️ Upload Error</Text>
@@ -271,23 +210,6 @@ export default function EventForm({
         </View>
       )}
 
-      {/* Video Tips Section */}
-      {eventData.image && isVideo(eventData.image) && (
-        <View style={styles.videoTips}>
-          <Text style={styles.videoTipsTitle}>
-            {uploadState.isUploading ? '📤 Upload Status:' : '🎬 Video Tips:'}
-          </Text>
-          <Text style={styles.videoTipsText}>
-            {uploadState.isUploading ? (
-              `Your video is uploading in the background. You can continue filling out the form - the save button will be enabled when upload completes.`
-            ) : (
-              `• Videos auto-compressed to ~5MB by our servers\n• Short videos (5-15 seconds) get more engagement\n• Show the action, not just talking\n• Good lighting makes a huge difference`
-            )}
-          </Text>
-        </View>
-      )}
-
-      {/* Event Form Fields */}
       <View style={styles.inputContainer}>
         <Text style={styles.inputLabel}>Event Title *</Text>
         <TextInput
@@ -332,7 +254,6 @@ export default function EventForm({
         />
       </View>
 
-      {/* Interests Selection */}
       <View style={styles.inputContainer}>
         <Text style={styles.inputLabel}>Event Categories *</Text>
         <View style={styles.interestsGrid}>
@@ -358,7 +279,6 @@ export default function EventForm({
         </View>
       </View>
 
-      {/* Date & Time Picker */}
       <View style={styles.inputContainer}>
         <Text style={styles.inputLabel}>Date & Time *</Text>
         <TouchableOpacity
@@ -375,7 +295,6 @@ export default function EventForm({
         </TouchableOpacity>
       </View>
 
-      {/* Repeat Event Section */}
       <View style={styles.inputContainer}>
         <View style={styles.toggleContainer}>
           <Text style={styles.inputLabel}>Repeat Event</Text>
@@ -384,55 +303,57 @@ export default function EventForm({
             onValueChange={(value) => {
               onDataChange({ 
                 isRecurring: value,
-                ...(value ? {} : { 
-                  recurrenceType: undefined, 
-                  recurrenceCount: undefined, 
-                  customDates: [] 
-                })
+                ...(value ? {} : { recurrenceType: undefined, recurrenceCount: undefined, customDates: [] })
               });
             }}
-            trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#4fc3f7' }}
-            thumbColor={eventData.isRecurring ? '#fff' : 'rgba(255,255,255,0.5)'}
+            trackColor={{ false: 'rgba(255,255,255,0.3)', true: 'rgba(79, 195, 247, 0.7)' }}
+            thumbColor={eventData.isRecurring ? '#4fc3f7' : '#fff'}
           />
         </View>
       </View>
 
-      {/* Recurring Options */}
       {eventData.isRecurring && (
         <View style={styles.inputContainer}>
-          <Text style={styles.inputLabel}>Repeat Frequency *</Text>
-          <TouchableOpacity
-            style={styles.frequencyButton}
-            onPress={handleFrequencySelect}
-          >
-            <Text style={styles.frequencyButtonText}>
-              {getFrequencyDisplayText()}
-            </Text>
-            <Ionicons name="chevron-down" size={20} color="#fff" />
-          </TouchableOpacity>
+          <Text style={styles.inputLabel}>Repeat Type *</Text>
+          <View style={styles.recurrenceOptions}>
+            {['daily', 'weekly', 'custom'].map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.recurrenceOption,
+                  eventData.recurrenceType === type && styles.recurrenceOptionSelected
+                ]}
+                onPress={() => onDataChange({ 
+                  recurrenceType: type as any,
+                  ...(type === 'custom' ? { recurrenceCount: undefined } : { customDates: [] })
+                })}
+              >
+                <Text
+                  style={[
+                    styles.recurrenceOptionText,
+                    eventData.recurrenceType === type && styles.recurrenceOptionTextSelected
+                  ]}
+                >
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       )}
 
-      {/* Number Input for Daily/Weekly */}
-      {eventData.isRecurring && (eventData.recurrenceType === 'daily' || eventData.recurrenceType === 'weekly') && (
+      {eventData.isRecurring && eventData.recurrenceType && eventData.recurrenceType !== 'custom' && (
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>
-            Number of events (Max: {eventData.recurrenceType === 'daily' ? '30' : '10'}) *
+            Number of {eventData.recurrenceType} events *
           </Text>
           <TextInput
             style={styles.input}
             value={eventData.recurrenceCount?.toString() || ''}
             onChangeText={(text) => {
-              if (text === '') {
-                onDataChange({ recurrenceCount: undefined });
-                return;
-              }
-              
-              const num = parseInt(text);
-              if (!isNaN(num)) {
-                const max = eventData.recurrenceType === 'daily' ? 30 : 10;
-                onDataChange({ recurrenceCount: Math.min(Math.max(num, 1), max) });
-              }
+              const num = parseInt(text) || 0;
+              const max = eventData.recurrenceType === 'daily' ? 30 : 10;
+              onDataChange({ recurrenceCount: Math.min(Math.max(num, 1), max) });
             }}
             placeholder={eventData.recurrenceType === 'daily' ? "1-30" : "1-10"}
             placeholderTextColor="rgba(255,255,255,0.5)"
@@ -442,7 +363,6 @@ export default function EventForm({
         </View>
       )}
 
-      {/* Custom Dates Section */}
       {eventData.isRecurring && eventData.recurrenceType === 'custom' && (
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>Custom Dates (Max: 10) *</Text>
@@ -481,7 +401,6 @@ export default function EventForm({
         </View>
       )}
 
-      {/* Save Event Button */}
       <LoadingButton
         onPress={onSave}
         loading={loading || uploadState.isUploading}
@@ -489,136 +408,143 @@ export default function EventForm({
         title={editingMode ? 'Update Event' : 'Save Event'}
         loadingTitle={
           loading ? 'Saving...' : 
-          uploadState.isUploading ? `Uploading media... ${uploadState.progress}%` : 
-          'Loading...'
+          uploadState.isUploading ? `Uploading... ${uploadState.progress}%` : 
+          'Saving...'
         }
       />
 
-      {/* Date Modal */}
-      {showDateModal && (
-        <Modal transparent animationType="slide" visible>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <DateTimePicker
-                value={tempDate}
-                mode="datetime"
-                display="spinner"
-                textColor="#fff"
-                onChange={(_, selected) => {
-                  if (selected) setTempDate(selected);
-                }}
-              />
-              <View style={styles.modalButtons}>
-                <TouchableOpacity 
-                  style={styles.modalButton}
-                  onPress={() => setShowDateModal(false)}
-                >
-                  <Text style={styles.modalButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.modalButton, styles.modalButtonPrimary]}
-                  onPress={() => {
-                    onDataChange({ date: tempDate });
-                    setShowDateModal(false);
-                  }}
-                >
-                  <Text style={[styles.modalButtonText, styles.modalButtonPrimaryText]}>Set Date</Text>
-                </TouchableOpacity>
-              </View>
+      <Modal
+        visible={showDateModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowDateModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Date & Time</Text>
+            
+            <DateTimePicker
+              value={tempDate}
+              mode="datetime"
+              display="spinner"
+              onChange={handleDateChange}
+              minimumDate={new Date()}
+              textColor="#fff"
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => setShowDateModal(false)}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonPrimary]}
+                onPress={saveDate}
+              >
+                <Text style={styles.modalButtonTextPrimary}>Save</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </Modal>
-      )}
+        </View>
+      </Modal>
 
-      {/* Custom Date Modal */}
-      {showCustomDateModal && (
-        <Modal transparent animationType="slide" visible>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Add Event Date</Text>
-              <DateTimePicker
-                value={tempCustomDate}
-                mode="datetime"
-                display="spinner"
-                textColor="#fff"
-                onChange={(_, selected) => {
-                  if (selected) setTempCustomDate(selected);
-                }}
-              />
-              <View style={styles.modalButtons}>
-                <TouchableOpacity 
-                  style={styles.modalButton}
-                  onPress={() => setShowCustomDateModal(false)}
-                >
-                  <Text style={styles.modalButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.modalButton, styles.modalButtonPrimary]}
-                  onPress={() => {
-                    const currentDates = eventData.customDates || [];
-                    if (currentDates.length < 10) {
-                      const newDates = [...currentDates, tempCustomDate].sort((a, b) => a.getTime() - b.getTime());
-                      onDataChange({ customDates: newDates });
-                    }
-                    setShowCustomDateModal(false);
-                  }}
-                >
-                  <Text style={[styles.modalButtonText, styles.modalButtonPrimaryText]}>Add Date</Text>
-                </TouchableOpacity>
-              </View>
+      <Modal
+        visible={showCustomDateModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCustomDateModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add Custom Date</Text>
+            
+            <DateTimePicker
+              value={tempCustomDate}
+              mode="datetime"
+              display="spinner"
+              onChange={handleCustomDateChange}
+              minimumDate={new Date()}
+              textColor="#fff"
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalButton}
+                onPress={() => setShowCustomDateModal(false)}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonPrimary]}
+                onPress={saveCustomDate}
+              >
+                <Text style={styles.modalButtonTextPrimary}>Add Date</Text>
+              </TouchableOpacity>
             </View>
           </View>
-        </Modal>
-      )}
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   eventFormCard: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
   },
   eventFormTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     color: '#fff',
-    marginBottom: 16,
+    marginBottom: 20,
     textAlign: 'center',
+    letterSpacing: 0.3,
   },
   uploadProgress: {
-    backgroundColor: 'rgba(0, 150, 255, 0.1)',
+    backgroundColor: 'rgba(79, 195, 247, 0.1)',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(0, 150, 255, 0.3)',
+    borderColor: 'rgba(79, 195, 247, 0.3)',
   },
   uploadProgressTitle: {
     color: '#4fc3f7',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
+    textAlign: 'center',
   },
   progressBar: {
-    height: 8,
+    height: 6,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 4,
-    overflow: 'hidden',
+    borderRadius: 3,
     marginBottom: 8,
+    overflow: 'hidden',
   },
   progressBarFill: {
     height: '100%',
     backgroundColor: '#4fc3f7',
-    borderRadius: 4,
+    borderRadius: 3,
   },
   uploadProgressSubtext: {
     color: 'rgba(79, 195, 247, 0.8)',
     fontSize: 14,
+    textAlign: 'center',
   },
   uploadError: {
     backgroundColor: 'rgba(255, 107, 107, 0.1)',
@@ -650,25 +576,6 @@ const styles = StyleSheet.create({
     color: '#ff6b6b',
     fontSize: 14,
     fontWeight: '600',
-  },
-  videoTips: {
-    backgroundColor: 'rgba(255, 193, 7, 0.1)',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 193, 7, 0.3)',
-  },
-  videoTipsTitle: {
-    color: '#ffc107',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  videoTipsText: {
-    color: 'rgba(255, 193, 7, 0.9)',
-    fontSize: 14,
-    lineHeight: 20,
   },
   inputContainer: {
     marginBottom: 20,
@@ -733,31 +640,40 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
-    minHeight: 56,
   },
   datePickerText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '500',
   },
   toggleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  frequencyButton: {
+  recurrenceOptions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  recurrenceOption: {
     backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
-    minHeight: 56,
   },
-  frequencyButtonText: {
+  recurrenceOptionSelected: {
+    backgroundColor: '#4fc3f7',
+  },
+  recurrenceOptionText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  recurrenceOptionTextSelected: {
+    color: '#000',
   },
   customDatesContainer: {
     gap: 8,
@@ -765,15 +681,16 @@ const styles = StyleSheet.create({
   },
   customDateItem: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 8,
     padding: 12,
+    borderRadius: 8,
   },
   customDateText: {
     color: '#fff',
     fontSize: 14,
+    fontWeight: '500',
     flex: 1,
   },
   addDateButton: {
@@ -781,8 +698,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(79, 195, 247, 0.1)',
-    borderRadius: 8,
     padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(79, 195, 247, 0.3)',
     gap: 8,
   },
   addDateButtonText: {
@@ -797,42 +716,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: 'rgba(40,40,40,0.95)',
     borderRadius: 20,
-    padding: 20,
-    width: '85%',
+    padding: 24,
+    width: '90%',
     maxWidth: 400,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
     color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
     textAlign: 'center',
     marginBottom: 20,
   },
   modalButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     marginTop: 20,
-    gap: 16,
+    gap: 12,
   },
   modalButton: {
     flex: 1,
     backgroundColor: 'rgba(255,255,255,0.1)',
     paddingVertical: 12,
-    paddingHorizontal: 24,
     borderRadius: 12,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   modalButtonPrimary: {
-    backgroundColor: '#fff',
+    backgroundColor: '#4fc3f7',
+    borderColor: '#4fc3f7',
   },
   modalButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
-  modalButtonPrimaryText: {
+  modalButtonTextPrimary: {
     color: '#000',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

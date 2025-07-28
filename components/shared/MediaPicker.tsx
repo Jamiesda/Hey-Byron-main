@@ -1,4 +1,4 @@
-// components/shared/MediaPicker.tsx - Fixed video thumbnail display
+// components/shared/MediaPicker.tsx - Fixed to preserve original aspect ratios
 // @ts-nocheck
 
 import { Ionicons } from '@expo/vector-icons';
@@ -134,12 +134,13 @@ export default function MediaPicker({
         mediaTypes = ImagePicker.MediaTypeOptions.Images;
       }
 
+      // ✅ FIXED: Removed forced aspect ratio and editing
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes,
-        allowsEditing: true,
-        aspect: [16, 9],
+        allowsEditing: false,  // ✅ Don't force cropping - preserve original aspect ratio
         quality: 0.8,
         videoMaxDuration: 60,
+        // ✅ REMOVED: aspect: [16, 9] - this was forcing all images to be cropped
       });
 
       if (!result.canceled && result.assets[0]) {
@@ -178,7 +179,11 @@ export default function MediaPicker({
               isLooping={false}
             />
           ) : (
-            <Image source={{ uri: currentMedia }} style={styles.mediaPreview} />
+            <Image 
+              source={{ uri: currentMedia }} 
+              style={styles.mediaPreview}
+              resizeMode="cover"  // ✅ Use cover to maintain aspect ratio in preview
+            />
           )}
           
           <View style={styles.mediaActions}>
@@ -233,7 +238,7 @@ const styles = StyleSheet.create({
   },
   mediaPreview: {
     width: '100%',
-    height: 200,
+    height: 200,  // ✅ Keep fixed height for preview only
     borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.1)',
   },

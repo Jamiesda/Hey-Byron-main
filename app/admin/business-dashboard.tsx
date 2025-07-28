@@ -7,29 +7,29 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    ImageBackground,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Image,
+  ImageBackground,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 // Import extracted utilities
 import { validateBusinessData } from '../../constants/validation';
-import { getErrorMessage } from '../../utils/errorHandling';
+import { getErrorMessage } from '../../utils/ErrorHandling';
 
 // Import Firebase functions
 import {
-    loadBusinessFromFirebase,
-    saveBusinessToFirebase,
-    uploadToFirebaseStorage
+  loadBusinessFromFirebase,
+  saveBusinessToFirebase,
+  uploadToFirebaseStorage
 } from '../../utils/firebaseUtils';
 
 // Import components

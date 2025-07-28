@@ -23,7 +23,7 @@ import {
 // Import extracted utilities
 import { isImage, isVideo } from '../../constants/fileConfig';
 import { validateEventData } from '../../constants/validation';
-import { getErrorMessage } from '../../utils/errorHandling';
+import { getErrorMessage } from '../../utils/ErrorHandling';
 
 // Import Firebase functions
 import {
@@ -36,6 +36,7 @@ import {
   saveEventToFirebase,
   savePendingEvent,
   saveRecurringEventsToFirebase,
+  saveRecurringPendingEvents, // ✅ ADDED THIS LINE
   uploadToFirebaseStorage
 } from '../../utils/firebaseUtils';
 
@@ -203,14 +204,24 @@ export default function EventsDashboard() {
           const hasFutureEvents = recurringEvents.some(e => new Date(e.date) > new Date());
           
           if (hasFutureEvents) {
-            // Save to pending events for server processing
-            await saveRecurringEventsToFirebase(recurringEvents);
+            // ✅ FIXED: Check if recurring events have video
+            const hasVideo = finalMediaUrl && isVideo(finalMediaUrl);
             
-            // Show the enhanced user message
-            Alert.alert(
-              '✅ Event Saved Successfully!',
-              '📽️ Your events are being processed and will go live when ready. You may close the app - we\'ll handle the rest!'
-            );
+            if (hasVideo) {
+              // Video recurring events need processing - save to pending
+              await saveRecurringPendingEvents(recurringEvents);
+              Alert.alert(
+                '✅ Video Events Saved!',
+                '📽️ Your video events are being processed and will go live when ready. You may close the app - we\'ll handle the rest!'
+              );
+            } else {
+              // Image recurring events - save directly to live events
+              await saveRecurringEventsToFirebase(recurringEvents);
+              Alert.alert(
+                '✅ Events Created!',
+                '🎉 Your recurring events are now live and visible in the feed!'
+              );
+            }
           } else {
             Alert.alert('Error', 'All recurring event dates are in the past');
             return;
@@ -225,14 +236,24 @@ export default function EventsDashboard() {
           await saveEventToFirebase(baseEvent);
           Alert.alert('Success', 'Event updated successfully!');
         } else if (isFuture) {
-          // Save to pending events for processing
-          await savePendingEvent(baseEvent);
+          // ✅ FIXED: Check if event has video or just image/none
+          const hasVideo = finalMediaUrl && isVideo(finalMediaUrl);
           
-          // Show the enhanced user message
-          Alert.alert(
-            '✅ Event Saved Successfully!',
-            '📽️ Your event is being processed and will go live when ready. You may close the app - we\'ll handle the rest!'
-          );
+          if (hasVideo) {
+            // Video events need processing - save to pending
+            await savePendingEvent(baseEvent);
+            Alert.alert(
+              '✅ Video Event Saved!',
+              '📽️ Your video is being processed and will go live when ready. You may close the app - we\'ll handle the rest!'
+            );
+          } else {
+            // Image events or no media - save directly to live events
+            await saveEventToFirebase(baseEvent);
+            Alert.alert(
+              '✅ Event Created!',
+              '🎉 Your event is now live and visible in the feed!'
+            );
+          }
         } else {
           Alert.alert('Error', 'Cannot create events in the past');
           return;
@@ -365,15 +386,8 @@ export default function EventsDashboard() {
       return '🟡'; // Yellow for processing/pending
     }
     
-    if (event.image && !event.imageProcessed) {
-      return '🟡'; // Yellow for processing
-    }
-    
-    if (event.imageProcessingFailed) {
-      return '🔴'; // Red for failed
-    }
-    
-    return '🟢'; // Green for ready
+    // ✅ FIXED: All live events (in events collection) are ready
+    return '🟢'; // Green for live/ready
   };
 
   if (loading) {

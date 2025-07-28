@@ -27,7 +27,7 @@ import {
 import { filterEventsByDistance, initializeLocationServices } from '../../utils/locationUtils';
 
 // FIREBASE IMPORTS
-import { handleFirebaseError } from '../../utils/errorHandling';
+import { handleFirebaseError } from '../../utils/ErrorHandling';
 import {
   loadEventsAndBusinesses
 } from '../../utils/firebaseUtils';

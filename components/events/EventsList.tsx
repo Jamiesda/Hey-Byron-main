@@ -5,12 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { ResizeMode, Video } from 'expo-av';
 import React from 'react';
 import {
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { isImage, isVideo } from '../../constants/fileConfig';
 import { FirebaseEvent } from '../../utils/firebaseUtils';
@@ -329,11 +329,12 @@ const styles = StyleSheet.create({
   },
   eventMediaContainer: {
     width: '100%',
-    height: 180,
   },
   eventImg: {
     width: '100%',
-    height: '100%',
+    aspectRatio: undefined, // ✅ Will be set dynamically
+    minHeight: 180,         // ✅ Minimum height for very wide images
+    maxHeight: 400,         // ✅ Maximum height for very tall images
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
   eventContent: {

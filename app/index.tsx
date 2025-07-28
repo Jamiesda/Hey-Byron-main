@@ -42,7 +42,7 @@ export default function RootScreen() {
 
   // Memoize the gradient colors - clean dark gradient
   const gradientColors = useMemo(() => [
-    '#1a1a1a', 
+    '#999999', 
     '#2d2d2d', 
     '#1a1a1a'
   ] as const, []);

@@ -1443,7 +1443,7 @@ export default function WhatsOnScreen() {
   }, [businessId, forcedDate, startDate, endDate, state.showOnlySaved]);
 
   const navigateBack = useCallback(() => {
-    router.replace('../');
+    router.push('/');
   }, [router]);
 
   return (
@@ -1461,7 +1461,12 @@ export default function WhatsOnScreen() {
             },
           ]}
         >
-          <TouchableOpacity style={styles.logoButton} onPress={navigateBack}>
+          <TouchableOpacity style={styles.logoButton} onPress={() => {
+            console.log('🔥 Logo button pressed!');
+            console.log('🚀 Attempting navigation...');
+            router.replace('../');
+            console.log('✅ Navigation called');
+          }}>
             <Image source={heyByronBlackLogo} style={styles.logoImage} resizeMode="contain" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.savedToggle} onPress={toggleShowOnlySaved}>

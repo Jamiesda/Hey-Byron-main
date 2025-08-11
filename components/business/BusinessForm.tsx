@@ -1,5 +1,5 @@
 // components/business/BusinessForm.tsx
-// Business form component with delete functionality
+// Updated to work with the modified MediaPicker component
 
 import React from 'react';
 import {
@@ -27,7 +27,8 @@ export interface BusinessFormProps {
   loading: boolean;
   onDataChange: (data: Partial<BusinessFormData>) => void;
   onImageSelected: (uri: string) => void;
-  onImageDeleted?: () => void; // NEW: Callback when image is deleted
+  onImageDeleted?: () => void;
+  businessId: string; // NEW: Required for business image uploads
 }
 
 export default function BusinessForm({
@@ -37,6 +38,7 @@ export default function BusinessForm({
   onDataChange,
   onImageSelected,
   onImageDeleted,
+  businessId,
 }: BusinessFormProps) {
 
   const handleFieldChange = (field: keyof BusinessFormData) => (value: string) => {
@@ -47,20 +49,25 @@ export default function BusinessForm({
     <View style={styles.card}>
       <Text style={styles.cardTitle}>Business Information</Text>
       
-      
-      {/* Business Image Picker with Delete */}
+      {/* Business Image Picker - Updated to use correct props */}
       <MediaPicker
-        onMediaSelected={onImageSelected}
+        uploadType="business"           // ADD THIS LINE
+        businessId={businessId}         // ADD THIS LINE
         currentMedia={businessData.image}
-        type="image"
-        maxSize={MAX_IMAGE_SIZE}
-        buttonText={businessData.image ? 'Change Business Image' : 'Add Business Image'}
+        maxSizeBytes={MAX_IMAGE_SIZE}
+        allowVideo={false}
+        allowImage={true}
+        onUploadComplete={(url) => {
+          onDataChange({ image: url });
+          onImageSelected(url);
+        }}
         onMediaDeleted={() => {
-          // Clear the image from business data when deleted
           onDataChange({ image: undefined });
           onImageDeleted?.();
         }}
-        showDeleteButton={true}
+        onUploadError={(error) => {
+          console.error('Business image upload error:', error);
+        }}
       />
 
       {/* Business Form Fields */}
@@ -100,7 +107,7 @@ export default function BusinessForm({
           value={businessData.tags}
           onChangeText={handleFieldChange('tags')}
           placeholder="e.g. restaurant, cafe, italian"
-          placeholderTextColor="rgba(255,255,255,0.5)"
+          placeholderTextColor="rgba(0,0,0,0.5)"
           maxLength={100}
         />
         <Text style={styles.helperText}>
@@ -126,7 +133,7 @@ export default function BusinessForm({
           value={businessData.socialLinks}
           onChangeText={handleFieldChange('socialLinks')}
           placeholder="https://instagram.com/yourbusiness, https://facebook.com/yourbusiness"
-          placeholderTextColor="rgba(255,255,255,0.5)"
+          placeholderTextColor="rgba(0,0,0,0.5)"
           maxLength={300}
           autoCapitalize="none"
           autoCorrect={false}
@@ -148,12 +155,12 @@ export default function BusinessForm({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.75)',
     borderRadius: 20,
     padding: 24,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(0,0,0,0.1)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
@@ -163,38 +170,33 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#fff',
+    color: '#000',
     letterSpacing: 0.3,
     marginBottom: 8,
-  },
-  cloudIndicator: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
-    marginBottom: 20,
   },
   inputContainer: {
     marginBottom: 20,
   },
   inputLabel: {
-    color: '#fff',
+    color: '#000',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
     letterSpacing: 0.3,
   },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: 12,
     padding: 16,
-    color: '#fff',
+    color: '#000',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(0,0,0,0.2)',
     minHeight: 56,
   },
   helperText: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(0,0,0,0.6)',
     marginTop: 6,
   },
 });

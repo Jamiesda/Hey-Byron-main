@@ -35,8 +35,8 @@ import {
 // Import components
 import { BusinessForm, BusinessFormData } from '../../components/business';
 
-const backgroundPattern = require('../../assets/logo3.png');
-const heyByronBlackLogo = require('../../assets/hey.byronblack.png');
+const backgroundPattern = require('../../assets/background.png');
+const heyByronBlackLogo = require('../../assets/heybyronhorizontallogo.png');
 
 export default function BusinessDashboard() {
   const router = useRouter();
@@ -152,71 +152,90 @@ export default function BusinessDashboard() {
     router.push('/admin/events-dashboard');
   };
 
-  const navigateBack = () => {
-    router.push('/admin/dashboard');
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.multiRemove(['businessCode', 'isBusiness']);
+      router.replace('/');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      router.replace('/');
+    }
   };
+
+
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#fff" />
-        <Text style={styles.loadingText}>Loading business information...</Text>
-      </View>
+      <ImageBackground source={backgroundPattern} style={styles.background} resizeMode="repeat">
+        <LinearGradient 
+          colors={['rgba(255, 255, 255, 0.96)', 'rgb(30, 120, 120)']} 
+          style={StyleSheet.absoluteFillObject}
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#1a1a1a" />
+          <Text style={styles.loadingText}>Loading business information...</Text>
+        </View>
+      </ImageBackground>
     );
   }
 
   return (
-    <ImageBackground source={backgroundPattern} style={styles.background} resizeMode="cover">
-      <LinearGradient colors={['rgba(0,0,0,0.7)', 'rgba(0,0,0,0.8)']} style={styles.overlay}>
-        <SafeAreaView style={styles.container}>
-          
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={navigateBack} style={styles.backButton}>
-              <Text style={styles.backButtonText}>← Dashboard</Text>
-            </TouchableOpacity>
-            
-            <Image source={heyByronBlackLogo} style={styles.logo} resizeMode="contain" />
-            
-            <TouchableOpacity onPress={navigateToEvents} style={styles.eventsButton}>
-              <Text style={styles.eventsButtonText}>Events →</Text>
-            </TouchableOpacity>
-          </View>
+    <ImageBackground source={backgroundPattern} style={styles.background} resizeMode="repeat">
+      <LinearGradient 
+        colors={['rgba(255, 255, 255, 0.96)', 'rgb(30, 120, 120)']} 
+        style={StyleSheet.absoluteFillObject}
+      />
+      <SafeAreaView style={styles.container}>
+        
+        {/* Logo Button - Same as login page */}
+        <TouchableOpacity
+          style={styles.logoButton}
+          onPress={() => router.push('/(tabs)')}
+        >
+          <Image source={heyByronBlackLogo} style={styles.logoImage} resizeMode="contain" />
+        </TouchableOpacity>
 
-          <KeyboardAvoidingView 
-            style={styles.content} 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        {/* Top Right Buttons */}
+        <View style={styles.topRightButtons}>
+          <TouchableOpacity 
+            style={styles.logoutButton} 
+            onPress={handleLogout}
           >
-            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-              
-              {/* Title */}
-              <Text style={styles.title}>Business Information</Text>
-              <Text style={styles.subtitle}>
-                Manage your business profile and details
-              </Text>
+            <Text style={styles.logoutButtonText}>Logout</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.eventsButtonTopRight} 
+            onPress={navigateToEvents}
+          >
+            <Text style={styles.eventsButtonText}>Events →</Text>
+          </TouchableOpacity>
+        </View>
 
-              {/* Business Form */}
-              <BusinessForm
-                businessData={businessData}
-                onDataChange={handleBusinessDataChange}
-                onImageSelected={handleBusinessImageSelected}
-                onSave={saveBusiness}
-                loading={savingBiz}
-              />
+        <KeyboardAvoidingView 
+          style={styles.content} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            
+            {/* Business Form */}
+            <BusinessForm
+              businessData={businessData}
+              onDataChange={handleBusinessDataChange}
+              onImageSelected={handleBusinessImageSelected}
+              onSave={saveBusiness}
+              loading={savingBiz}
+            />
 
-            </ScrollView>
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-      </LinearGradient>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   background: {
-    flex: 1,
-  },
-  overlay: {
     flex: 1,
   },
   container: {
@@ -226,59 +245,57 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.8)',
   },
   loadingText: {
-    color: '#fff',
+    color: '#1a1a1a',
     marginTop: 16,
     fontSize: 16,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-  backButton: {
+  logoButton: {
+    position: 'absolute',
+    left: 6,
+    top: Platform.OS === 'ios' ? 25 : 5,
     padding: 8,
+    zIndex: 10,
   },
-  backButtonText: {
+  logoImage: {
+    width: 150,
+    height: 50,
+  },
+  topRightButtons: {
+    position: 'absolute',
+    right: 20,
+    top: Platform.OS === 'ios' ? 42 : 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    zIndex: 10,
+  },
+  logoutButton: {
+    backgroundColor: 'rgba(255, 59, 59, 0.9)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  logoutButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '600',
   },
-  logo: {
-    height: 32,
-    width: 120,
-  },
-  eventsButton: {
+  eventsButtonTopRight: {
     padding: 8,
   },
   eventsButtonText: {
-    color: '#fff',
+    color: '#1a1a1a',
     fontSize: 16,
     fontWeight: '500',
   },
   content: {
     flex: 1,
+    marginTop: Platform.OS === 'ios' ? 90 : 70,
   },
   scrollView: {
     flex: 1,
-    paddingHorizontal: 20,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.8)',
-    textAlign: 'center',
-    marginBottom: 32,
+    paddingHorizontal: 24,
   },
 });

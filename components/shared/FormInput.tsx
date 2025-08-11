@@ -63,7 +63,7 @@ export default function FormInput({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="rgba(255,255,255,0.5)"
+        placeholderTextColor="rgba(0,0,0,0.5)"
         maxLength={maxLength}
         multiline={multiline}
         textAlignVertical={multiline ? 'top' : 'center'}
@@ -99,20 +99,20 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   inputLabel: {
-    color: '#fff',
+    color: '#000',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
     letterSpacing: 0.3,
   },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: 12,
     padding: 16,
-    color: '#fff',
+    color: '#000',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(0,0,0,0.2)',
     minHeight: 56,
   },
   inputMultiline: {
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   },
   characterCount: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(0,0,0,0.6)',
     fontWeight: '500',
   },
   characterCountWarning: {

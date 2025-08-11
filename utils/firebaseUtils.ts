@@ -1,4 +1,4 @@
-// utils/firebaseUtils.ts - COMPLETE UPDATED VERSION with hybrid filename support
+// utils/firebaseUtils.ts - COMPLETE UPDATED VERSION with business image support
 
 import {
   collection,
@@ -110,6 +110,71 @@ export const uploadToFirebaseStorage = async (
     return downloadURL;
   } catch (error) {
     console.error('❌ Error uploading file to Firebase Storage:', error);
+    throw error;
+  }
+};
+
+/**
+ * Upload business image to Firebase Storage with compression
+ */
+export const uploadBusinessImageToFirebase = async (
+  uri: string, 
+  businessId: string
+): Promise<string> => {
+  try {
+    console.log('Uploading business image to Firebase Storage:', { uri, businessId });
+    
+    // Create business-specific filename
+    const timestamp = Date.now();
+    const ext = uri.split('.').pop() || 'jpg';
+    const filename = `business_${businessId}_${timestamp}.${ext}`;
+    
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    
+    // Upload to businesses/ folder instead of events/
+    const storageRef = ref(storage, `businesses/${filename}`);
+    
+    const uploadResult = await uploadBytes(storageRef, blob);
+    const downloadURL = await getDownloadURL(uploadResult.ref);
+    
+    console.log('✅ Business image uploaded successfully:', downloadURL);
+    return downloadURL;
+  } catch (error) {
+    console.error('❌ Error uploading business image to Firebase Storage:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete business image from Firebase Storage
+ */
+export const deleteBusinessImageFromFirebase = async (imageUrl: string): Promise<void> => {
+  try {
+    if (!imageUrl || !imageUrl.includes('firebase')) {
+      console.log('Not a Firebase Storage file, skipping:', imageUrl);
+      return;
+    }
+
+    console.log('🗑️ Deleting business image from Firebase Storage:', imageUrl);
+    
+    // Extract file path from Firebase Storage URL
+    const url = new URL(imageUrl);
+    let filePath = url.pathname.match(/\/o\/(.+?)(\?|$)/)?.[1];
+    
+    if (filePath) {
+      filePath = decodeURIComponent(filePath);
+      console.log('🗑️ Deleting business file:', filePath);
+      
+      const fileRef = ref(storage, filePath);
+      await deleteObject(fileRef);
+      
+      console.log('✅ Business image deleted successfully:', filePath);
+    } else {
+      console.warn('Could not extract file path from URL:', imageUrl);
+    }
+  } catch (error) {
+    console.error('❌ Error deleting business image from Firebase Storage:', error);
     throw error;
   }
 };

@@ -7,24 +7,24 @@ import { useRouter } from 'expo-router';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Dimensions,
-    Image,
-    ImageBackground,
-    Platform,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  ImageBackground,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { ALLOWED_BUSINESS_CODES } from '../../data/allowedBusinessCodes';
 import { db } from '../../firebaseConfig'; // Import from your config file
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const backgroundPattern = require('../../assets/logo3.png');
-const heyByronLogo = require('../../assets/hey.byronblack.png');
+const backgroundPattern = require('../../assets/background.png');
+const heyByronLogo = require('../../assets/heybyronhorizontallogo.png');
 
 // Set your admin code here - change this to something secure
 const OWNER_ADMIN_CODE = 'OwnerAdmin2024';
@@ -72,7 +72,7 @@ export default function LoginScreen() {
       // Valid business code - proceed with login
       await AsyncStorage.setItem('businessCode', trimmed);
       await AsyncStorage.setItem('isBusiness', 'true');
-      router.replace('/admin/dashboard');
+      router.replace('/admin/business-dashboard');
       
     } catch (error) {
       console.error('Error during login:', error);
@@ -88,7 +88,7 @@ export default function LoginScreen() {
       resizeMode="repeat"
     >
       <LinearGradient 
-        colors={['rgba(0, 0, 0, 0.8)', 'rgba(0, 0, 0, 0.95)']} 
+        colors={['rgba(255, 255, 255, 0.96)', 'rgb(30, 120, 120)']} 
         style={StyleSheet.absoluteFillObject}
       />
       <SafeAreaView style={styles.safe}>
@@ -113,7 +113,7 @@ export default function LoginScreen() {
             <TextInput
               style={styles.input}
               placeholder="Enter your code"
-              placeholderTextColor="rgba(255,255,255,0.5)"
+              placeholderTextColor="rgba(0,0,0,0.4)"
               value={code}
               onChangeText={setCode}
               autoCapitalize="none"
@@ -162,14 +162,14 @@ const styles = StyleSheet.create({
   },
   logoButton: {
     position: 'absolute',
-    left: 20,
-    top: Platform.OS === 'ios' ? 60 : 40,
+    left: 6,
+    top: Platform.OS === 'ios' ? 25 : 5,
     padding: 8,
     zIndex: 10,
   },
   logoImage: {
     width: 150,
-    height: 24,
+    height: 50,
   },
   headerContainer: {
     marginTop: SCREEN_HEIGHT * 0.15,
@@ -182,24 +182,24 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginBottom: 12,
     textAlign: 'center',
-    color: '#fff',
+    color: '#1a1a1a',
     letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: 16,
     fontWeight: '400',
     textAlign: 'center',
-    color: 'rgba(255,255,255,0.7)',
+    color: '#333333',
     lineHeight: 22,
     paddingHorizontal: 20,
   },
   container: {
     marginHorizontal: 24,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: 20,
     padding: 28,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.8)',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -218,18 +218,18 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#1a1a1a',
     marginBottom: 8,
     letterSpacing: 0.3,
   },
   input: {
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: 'rgba(0,0,0,0.2)',
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 52,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    color: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    color: '#1a1a1a',
     fontSize: 16,
     fontWeight: '500',
   },
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   },
   helpText: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
+    color: '#4a4a4a',
     textAlign: 'center',
     lineHeight: 20,
     fontWeight: '400',

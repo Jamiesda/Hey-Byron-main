@@ -27,8 +27,7 @@ import { db } from '../../../firebaseConfig';
 // NEW: Location imports for distance calculation
 import { getCurrentLocation } from '../../../utils/locationUtils';
 
-const backgroundPattern = require('../../../assets/logo3.png');
-const logo = require('../../../assets/logo2.png');
+const backgroundPattern = require('../../../assets/background.png');
 
 // NEW: Distance calculation helper
 const calculateDistance = (
@@ -205,7 +204,7 @@ export default function ExploreScreen() {
           </View>
           <Text style={styles.tags} numberOfLines={2}>{item.tags.join(' • ')}</Text>
         </View>
-        <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
+        <Ionicons name="chevron-forward" size={20} color="rgba(0,0,0,0.6)" />
       </TouchableOpacity>
     </Link>
   );
@@ -237,7 +236,7 @@ export default function ExploreScreen() {
     if (searchText.trim() === '') {
       return (
         <View style={styles.emptyState}>
-          <Ionicons name="search-outline" size={64} color="rgba(255,255,255,0.3)" />
+          <Ionicons name="search-outline" size={64} color="rgba(0,0,0,0.3)" />
           <Text style={styles.emptyTitle}>Discover Byron Bay</Text>
           <Text style={styles.emptySubtitle}>Search for businesses, cafes, restaurants, and more...</Text>
           {locationLoading && (
@@ -252,7 +251,7 @@ export default function ExploreScreen() {
     
     return (
       <View style={styles.emptyState}>
-        <Ionicons name="sad-outline" size={64} color="rgba(255,255,255,0.3)" />
+        <Ionicons name="sad-outline" size={64} color="rgba(0,0,0,0.3)" />
         <Text style={styles.emptyTitle}>No results found</Text>
         <Text style={styles.emptySubtitle}>Try adjusting your search terms</Text>
       </View>
@@ -276,47 +275,24 @@ export default function ExploreScreen() {
   };
 
   return (
-    <View style={styles.background}>
-      <ImageBackground 
-        source={backgroundPattern} 
-        style={StyleSheet.absoluteFill}
-        resizeMode="repeat"
-      />
-      
-      {/* Logo Background */}
-      <Image 
-        source={logo} 
-        style={[
-          StyleSheet.absoluteFill, 
-          { 
-            opacity: 0.5, 
-            width: '100%', 
-            height: '100%',
-            top: '20%',
-            transform: [
-              { translateX: 0 },
-              { translateY: -100 },
-              { scale: 1 }
-            ]
-          }
-        ]} 
-        resizeMode="contain"
-      />
-      
-      {/* Dark Teal Gradient Overlay */}
+    <ImageBackground 
+      source={backgroundPattern} 
+      style={styles.background}
+      resizeMode="repeat"
+    >
       <LinearGradient 
-        colors={['rgb(16, 78, 78)', 'rgb(30, 120, 120)']}
+        colors={['rgba(255, 255, 255, 0.96)', 'rgb(30, 120, 120)']}
         style={StyleSheet.absoluteFillObject}
       />
       
       <SafeAreaView style={styles.safe}>        
         <View style={styles.searchContainer}>
           <View style={styles.searchBar}>
-            <Ionicons name="search" size={18} color="rgba(255,255,255,0.6)" style={styles.searchIcon} />
+            <Ionicons name="search" size={18} color="rgba(0,0,0,0.6)" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search businesses near you..."
-              placeholderTextColor="rgba(255,255,255,0.6)"
+              placeholderTextColor="rgba(0,0,0,0.6)"
               value={searchText}
               onChangeText={setSearchText}
               clearButtonMode="while-editing"
@@ -337,7 +313,7 @@ export default function ExploreScreen() {
           ListEmptyComponent={renderEmptyState}
         />
       </SafeAreaView>
-    </View>
+    </ImageBackground>
   );
 }
 
@@ -359,22 +335,22 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(0,0,0,0.09)',
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 8,
     height: 44,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(0,0,0,0.2)',
   },
   searchIcon: {
     marginRight: 8,
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(0,0,0,0.6)',
   },
   searchInput: {
     flex: 1,
     fontSize: 17,
-    color: '#fff',
+    color: 'rgba(0,0,0,0.8)',
     fontWeight: '400',
     height: '100%',
   },
@@ -383,7 +359,7 @@ const styles = StyleSheet.create({
   },
   resultsCount: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(0,0,0,0.8)',
     fontWeight: '500',
     textAlign: 'center',
   },
@@ -402,11 +378,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.75)',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(0,0,0,0.1)',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -426,7 +402,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   placeholderThumbnail: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -444,7 +420,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#fff',
+    color: 'rgba(0,0,0,0.8)',
     flex: 1,
     marginRight: 8,
   },
@@ -460,7 +436,7 @@ const styles = StyleSheet.create({
   },
   tags: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(0,0,0,0.7)',
     lineHeight: 20,
     fontWeight: '500',
   },
@@ -474,14 +450,14 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#fff',
+    color: 'rgba(0,0,0,0.8)',
     marginTop: 24,
     marginBottom: 12,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(0,0,0,0.7)',
     textAlign: 'center',
     lineHeight: 22,
   },

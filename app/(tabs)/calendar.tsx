@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff', // White text for dark background
+    color: 'rgba(0, 0, 0, 0.8)', // Dark text to match interests page
     flex: 1,
   },
   resetButton: {
@@ -276,13 +276,13 @@ const styles = StyleSheet.create({
   selectionText: {
     fontSize: 24,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.9)', // Light text for dark background
+    color: 'rgba(0, 0, 0, 0.8)', // Dark text to match interests page
   },
   modeToggle: {
     flexDirection: 'row',
     marginHorizontal: 20,
     marginBottom: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)', // Semi-transparent for dark theme
+    backgroundColor: 'rgba(0, 0, 0, 0.09)', // Dark background to match interests page
     borderRadius: 8,
     padding: 4,
   },
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
   modeButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.7)', // Light text for dark background
+    color: 'rgb(0, 0, 0)', // Dark text to match interests page
   },
   modeButtonTextActive: {
     color: '#000000', // Black text on gold background

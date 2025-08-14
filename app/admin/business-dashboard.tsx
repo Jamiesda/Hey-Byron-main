@@ -147,8 +147,18 @@ export default function BusinessDashboard() {
 
   const handleLogout = async () => {
     try {
-      await AsyncStorage.multiRemove(['businessCode', 'isBusiness']);
-      router.replace('/');
+      // Check if admin is viewing business
+      const isAdminViewing = await AsyncStorage.getItem('adminViewingBusiness');
+      
+      if (isAdminViewing) {
+        // Admin viewing business - go back to owner dashboard
+        await AsyncStorage.multiRemove(['businessCode', 'isBusiness', 'adminViewingBusiness']);
+        router.replace('/admin/owner-dashboard');
+      } else {
+        // Regular business user - go to home
+        await AsyncStorage.multiRemove(['businessCode', 'isBusiness']);
+        router.replace('/');
+      }
     } catch (error) {
       console.error('Error during logout:', error);
       router.replace('/');

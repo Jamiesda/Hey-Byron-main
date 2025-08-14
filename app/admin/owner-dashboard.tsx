@@ -404,14 +404,18 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 40,
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
   },
   card: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   cardTitle: {
     fontSize: 20,
@@ -427,7 +431,7 @@ const styles = StyleSheet.create({
   },
   statItem: {
     width: '48%',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)', // Changed from white to subtle dark
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -441,7 +445,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(0,0,0,0.8)',
     fontWeight: '500',
   },
   createCodeSection: {
@@ -459,14 +463,14 @@ const styles = StyleSheet.create({
   },
   codeInput: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    color: '#1a1a1a',
+    color: '#000',
     fontSize: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   createButton: {
     backgroundColor: 'rgba(194, 164, 120, 1)',
@@ -487,12 +491,12 @@ const styles = StyleSheet.create({
   },
   existingCodesSection: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.2)',
+    borderTopColor: 'rgba(0,0,0,0.1)', // Changed from white to dark
     paddingTop: 20,
   },
   codesScrollView: {
     maxHeight: 200,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(0,0,0,0.03)', // Changed from white to subtle dark
     borderRadius: 8,
     paddingVertical: 8,
   },
@@ -500,7 +504,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)', // Changed from white to subtle dark
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
@@ -532,12 +536,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)', // Changed from white to subtle dark
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.1)', // Changed from white to dark border
   },
   businessInfo: {
     flex: 1,
@@ -550,7 +554,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   businessDetails: {
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(0,0,0,0.7)',
     fontSize: 14,
   },
   businessActions: {
@@ -563,12 +567,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   viewBusinessText: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(0,0,0,0.8)',
     fontSize: 12,
     fontWeight: '500',
   },
   emptyText: {
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(0,0,0,0.6)',
     fontSize: 16,
     textAlign: 'center',
     fontStyle: 'italic',

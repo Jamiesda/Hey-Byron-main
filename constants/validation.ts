@@ -44,17 +44,22 @@ export const validateBusinessData = async (businessData: {
   }
 
   // Website validation (required)
-  if (!businessData.website.trim()) {
-    errors.push("Website is required");
-  } else {
-    // More flexible website validation - allow domain names without protocol
-    const websiteValue = businessData.website.trim();
-    // Check if it's a valid domain format (with or without protocol)
-    const domainRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
-    if (!domainRegex.test(websiteValue)) {
-      errors.push("Please enter a valid website (e.g., yourwebsite.com or https://yourwebsite.com)");
-    }
+ // Website validation (required)
+if (!businessData.website.trim()) {
+  errors.push("Website is required");
+} else {
+  const websiteValue = businessData.website.trim().toLowerCase();
+  
+  // Very flexible URL validation - just check it has a domain structure
+  const hasValidDomain = websiteValue.includes('.') && 
+                         websiteValue.length > 4 && 
+                         !websiteValue.includes(' ') &&
+                         /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(websiteValue.replace(/^https?:\/\//, ''));
+  
+  if (!hasValidDomain) {
+    errors.push("Please enter a valid website (e.g., yourwebsite.com or https://yourwebsite.com)");
   }
+}
 
   // Tags validation
   if (!businessData.tags.trim()) {
@@ -71,8 +76,7 @@ export const validateBusinessData = async (businessData: {
     
     // Check if each social link is a valid URL
     const links = businessData.socialLinks.split(',').map(link => link.trim());
-    const urlRegex = /^https?:\/\/.+\..+/;
-    const invalidLinks = links.filter(link => link && !urlRegex.test(link));
+    const urlRegex = /^(https?:\/\/)?([\da-z\.-]+\.[a-z]{2,}(\.[a-z]{2,})?)(\/.*)?$/i;    const invalidLinks = links.filter(link => link && !urlRegex.test(link));
     
     if (invalidLinks.length > 0) {
       errors.push("All social links must be valid URLs (e.g., https://facebook.com/yourpage)");
@@ -122,8 +126,8 @@ export const validateEventData = (eventData: {
     
     // More flexible link validation - allow domain names without protocol
     const linkValue = eventData.link.trim();
-    const domainRegex = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
-    if (!domainRegex.test(linkValue)) {
+    const urlRegex = /^(https?:\/\/)?([\da-z\.-]+\.[a-z]{2,})(\/.*)?$/i;
+    if (!urlRegex.test(linkValue)) {
       errors.push("Event link must be a valid URL (e.g., tickets.com or https://tickets.com)");
     }
   }

@@ -6,18 +6,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  ImageBackground,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Image,
+    ImageBackground,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 // Import extracted utilities
@@ -27,17 +27,17 @@ import { getErrorMessage } from '../../utils/ErrorHandling';
 
 // Import Firebase functions
 import {
-  FirebaseEvent,
-  deleteEventFromFirebase,
-  deletePendingEvent,
-  generateRecurringEvents,
-  loadEventsForBusiness,
-  loadPendingEventsForBusiness,
-  saveEventToFirebase,
-  savePendingEvent,
-  saveRecurringEventsToFirebase,
-  saveRecurringPendingEvents, // ✅ ADDED THIS LINE
-  uploadToFirebaseStorage
+    FirebaseEvent,
+    deleteEventFromFirebase,
+    deletePendingEvent,
+    generateRecurringEvents,
+    loadEventsForBusiness,
+    loadPendingEventsForBusiness,
+    saveEventToFirebase,
+    savePendingEvent,
+    saveRecurringEventsToFirebase,
+    saveRecurringPendingEvents, // ✅ ADDED THIS LINE
+    uploadToFirebaseStorage
 } from '../../utils/firebaseUtils';
 
 // Import components
@@ -364,8 +364,14 @@ export default function EventsDashboard() {
     router.push('/admin/business-dashboard');
   };
 
-  const navigateBack = () => {
-    router.push('/admin/dashboard');
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.multiRemove(['businessCode', 'isBusiness']);
+      router.replace('/');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      router.replace('/');
+    }
   };
 
   // Helper functions for simplified events list
@@ -392,10 +398,16 @@ export default function EventsDashboard() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#fff" />
-        <Text style={styles.loadingText}>Loading events...</Text>
-      </View>
+      <ImageBackground source={backgroundPattern} style={styles.background} resizeMode="repeat">
+        <LinearGradient 
+          colors={['rgba(255, 255, 255, 0.96)', 'rgb(30, 120, 120)']} 
+          style={StyleSheet.absoluteFillObject}
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#1a1a1a" />
+          <Text style={styles.loadingText}>Loading events...</Text>
+        </View>
+      </ImageBackground>
     );
   }
 
@@ -408,27 +420,41 @@ export default function EventsDashboard() {
   return (
     <ImageBackground source={backgroundPattern} style={styles.background} resizeMode="repeat">
       <LinearGradient 
-        colors={[
-          'rgb(16, 78, 78)', 
-          'rgb(30, 120, 120)'
-        ]} 
-        style={styles.overlay}
-      >
-        <SafeAreaView style={styles.container}>
-          
-          {/* Logo Button */}
-          <TouchableOpacity
-            style={styles.logoButton}
-            onPress={navigateBack}
-          >
-            <Image source={heyByronBlackLogo} style={styles.logoImage} resizeMode="contain" />
-          </TouchableOpacity>
+        colors={['rgba(255, 255, 255, 0.96)', 'rgb(30, 120, 120)']} 
+        style={StyleSheet.absoluteFillObject}
+      />
+      <SafeAreaView style={styles.container}>
+        
+        {/* Logo Button - Same as business dashboard */}
+        <TouchableOpacity
+          style={styles.logoButton}
+          onPress={() => router.push('/(tabs)')}
+        >
+          <Image source={heyByronBlackLogo} style={styles.logoImage} resizeMode="contain" />
+        </TouchableOpacity>
 
-          <KeyboardAvoidingView 
-            style={styles.content} 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        {/* Top Right Buttons */}
+        <View style={styles.topRightButtons}>
+          <TouchableOpacity 
+            style={styles.logoutButton} 
+            onPress={handleLogout}
           >
-            <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            <Text style={styles.logoutButtonText}>Logout</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.businessButtonTopRight} 
+            onPress={navigateToBusiness}
+          >
+            <Text style={styles.businessButtonText}>Business →</Text>
+          </TouchableOpacity>
+        </View>
+
+        <KeyboardAvoidingView 
+          style={styles.content} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
               
               {/* YOUR EVENTS SECTION - NOW ON TOP */}
               <View style={styles.card}>
@@ -507,19 +533,15 @@ export default function EventsDashboard() {
                 editingMode={!!editingEventId}
               />
 
-            </ScrollView>
-          </KeyboardAvoidingView>
+          </ScrollView>
+        </KeyboardAvoidingView>
         </SafeAreaView>
-      </LinearGradient>
     </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   background: {
-    flex: 1,
-  },
-  overlay: {
     flex: 1,
   },
   container: {
@@ -529,46 +551,70 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.8)',
   },
   loadingText: {
-    color: '#fff',
+    color: '#1a1a1a',
     marginTop: 16,
     fontSize: 16,
   },
   logoButton: {
     position: 'absolute',
-    left: 20,
-    top: Platform.OS === 'ios' ? 60 : 40,
+    left: 6,
+    top: Platform.OS === 'ios' ? 25 : 5,
     padding: 8,
     zIndex: 10,
   },
   logoImage: {
     width: 150,
-    height: 24,
+    height: 50,
+  },
+  topRightButtons: {
+    position: 'absolute',
+    right: 20,
+    top: Platform.OS === 'ios' ? 42 : 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    zIndex: 10,
+  },
+  logoutButton: {
+    backgroundColor: 'rgba(255, 59, 59, 0.9)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  logoutButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  businessButtonTopRight: {
+    padding: 8,
+  },
+  businessButtonText: {
+    color: '#1a1a1a',
+    fontSize: 16,
+    fontWeight: '500',
   },
   content: {
     flex: 1,
-    marginTop: 100, // Space for logo
+    marginTop: Platform.OS === 'ios' ? 90 : 70,
   },
   scrollView: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: 24,
   },
   // Events list styles
   card: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -577,13 +623,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cardTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#fff',
-    letterSpacing: 0.3,
+    color: '#000',
+    marginBottom: 20,
+    textAlign: 'center',
   },
   eventCountBadge: {
-    backgroundColor: '#fff',
+    backgroundColor: '#4a9b8e',
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -591,7 +638,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   eventCountText: {
-    color: '#000',
+    color: '#fff',
     fontSize: 16,
     fontWeight: '700',
   },
@@ -607,14 +654,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   emptyStateText: {
-    color: '#fff',
+    color: '#000',
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyStateSubtext: {
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(0,0,0,0.7)',
     fontSize: 14,
     textAlign: 'center',
     maxWidth: 250,
@@ -624,11 +671,11 @@ const styles = StyleSheet.create({
     maxHeight: 350,
   },
   eventCard: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.1)',
   },
   eventContent: {
     padding: 16,
@@ -649,13 +696,13 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#000',
     flex: 1,
     lineHeight: 22,
   },
   eventDate: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(0,0,0,0.7)',
     fontWeight: '500',
   },
   eventActions: {
@@ -664,20 +711,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   editEventButton: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(74, 155, 142, 0.1)',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(74, 155, 142, 0.3)',
   },
   editEventButtonText: {
-    color: '#fff',
+    color: '#4a9b8e',
     fontSize: 14,
     fontWeight: '500',
   },
   deleteEventButton: {
-    backgroundColor: 'rgba(255,0,0,0.2)',
+    backgroundColor: 'rgba(255,0,0,0.1)',
     width: 32,
     height: 32,
     borderRadius: 16,

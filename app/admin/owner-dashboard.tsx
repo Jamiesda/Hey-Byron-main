@@ -4,7 +4,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -29,8 +29,8 @@ import {
   loadEventsFromFirebase
 } from '../../utils/firebaseUtils';
 
-const backgroundPattern = require('../../assets/logo3.png');
-const heyByronLogo = require('../../assets/hey.byronblack.png');
+const backgroundPattern = require('../../assets/background.png');
+const heyByronLogo = require('../../assets/heybyronhorizontallogo.png');
 
 export default function OwnerDashboardScreen() {
   const router = useRouter();
@@ -175,16 +175,17 @@ export default function OwnerDashboardScreen() {
             setDeletingCodes(prev => new Set(prev).add(code));
             
             try {
-              // FIREBASE: Delete from Firebase (we'll actually set isActive to false to keep audit trail)
-              await updateDoc(doc(db, 'businessCodes', code), {
-                isActive: false,
-                deletedAt: serverTimestamp()
-              });
+              // Remove from the codes array in admin/businessCodes (same location as create)
+              const updatedCodes = businessCodes.filter(c => c !== code);
               
-              console.log('Business code deactivated in Firebase:', code);
+              // Save to Firebase - same way as createBusinessCode
+              const businessCodesDoc = doc(db, 'admin', 'businessCodes');
+              await setDoc(businessCodesDoc, { codes: updatedCodes });
+              
+              console.log('Business code removed from Firebase:', code);
               
               // Update local state
-              setBusinessCodes(prev => prev.filter(c => c !== code));
+              setBusinessCodes(updatedCodes);
               
               Alert.alert('Success', `Business code "${code}" has been deleted.`);
             } catch (error) {
@@ -212,7 +213,7 @@ export default function OwnerDashboardScreen() {
       await AsyncStorage.setItem('adminViewingBusiness', 'true'); // Flag for back button
       
       // Navigate to business dashboard
-      router.push('/admin/dashboard');
+      router.push('/admin/business-dashboard');
     } catch (error) {
       Alert.alert('Error', 'Failed to access business dashboard');
     }
@@ -221,9 +222,12 @@ export default function OwnerDashboardScreen() {
   if (loading) {
     return (
       <ImageBackground source={backgroundPattern} style={styles.background} resizeMode="repeat">
-        <LinearGradient colors={['rgba(0, 0, 0, 0.8)', 'rgba(0, 0, 0, 0.95)']} style={StyleSheet.absoluteFillObject} />
+        <LinearGradient 
+          colors={['rgba(255, 255, 255, 0.96)', 'rgb(30, 120, 120)']} 
+          style={StyleSheet.absoluteFillObject}
+        />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#fff" />
+          <ActivityIndicator size="large" color="#1a1a1a" />
           <Text style={styles.loadingText}>Loading admin panel from Firebase...</Text>
         </View>
       </ImageBackground>
@@ -232,15 +236,19 @@ export default function OwnerDashboardScreen() {
 
   return (
     <ImageBackground source={backgroundPattern} style={styles.background} resizeMode="repeat">
-      <LinearGradient colors={['rgba(0, 0, 0, 0.8)', 'rgba(0, 0, 0, 0.95)']} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient 
+        colors={['rgba(255, 255, 255, 0.96)', 'rgb(30, 120, 120)']} 
+        style={StyleSheet.absoluteFillObject}
+      />
       
       <SafeAreaView style={styles.safe}>
-        {/* Header - YOUR VERSION: Just logo, no title or logout */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.logoButton} onPress={() => router.push('/')}>
-            <Image source={heyByronLogo} style={styles.logoImage} resizeMode="contain" />
-          </TouchableOpacity>
-        </View>
+        {/* Logo Button */}
+        <TouchableOpacity
+          style={styles.logoButton}
+          onPress={() => router.push('/')}
+        >
+          <Image source={heyByronLogo} style={styles.logoImage} resizeMode="contain" />
+        </TouchableOpacity>
 
         <ScrollView contentContainerStyle={styles.scrollContent}>
           {/* App Statistics */}
@@ -279,7 +287,7 @@ export default function OwnerDashboardScreen() {
                   value={newBusinessCode}
                   onChangeText={setNewBusinessCode}
                   placeholder="Enter new business code"
-                  placeholderTextColor="rgba(255,255,255,0.5)"
+                  placeholderTextColor="rgba(0,0,0,0.4)"
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
@@ -300,28 +308,32 @@ export default function OwnerDashboardScreen() {
             {/* Existing Codes */}
             <View style={styles.existingCodesSection}>
               <Text style={styles.sectionTitle}>Active Business Codes ({businessCodes.length})</Text>
-              {businessCodes.map((code, index) => (
-                <View key={index} style={styles.codeItem}>
-                  <Text style={styles.codeText}>{code}</Text>
-                  <TouchableOpacity 
-                    style={[
-                      styles.deleteCodeButton,
-                      deletingCodes.has(code) && styles.deleteCodeButtonDisabled
-                    ]}
-                    onPress={() => deleteBusinessCode(code)}
-                    disabled={deletingCodes.has(code)}
-                  >
-                    {deletingCodes.has(code) ? (
-                      <ActivityIndicator size="small" color="#ff6b6b" />
-                    ) : (
-                      <Text style={styles.deleteCodeText}>✕</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              ))}
-              {businessCodes.length === 0 && (
-                <Text style={styles.emptyText}>No business codes created yet</Text>
-              )}
+              <ScrollView style={styles.codesScrollView} showsVerticalScrollIndicator={true}>
+                {businessCodes
+                  .sort((a, b) => a.localeCompare(b))
+                  .map((code, index) => (
+                    <View key={index} style={styles.codeItem}>
+                      <Text style={styles.codeText}>{code}</Text>
+                      <TouchableOpacity 
+                        style={[
+                          styles.deleteCodeButton,
+                          deletingCodes.has(code) && styles.deleteCodeButtonDisabled
+                        ]}
+                        onPress={() => deleteBusinessCode(code)}
+                        disabled={deletingCodes.has(code)}
+                      >
+                        {deletingCodes.has(code) ? (
+                          <ActivityIndicator size="small" color="#ff6b6b" />
+                        ) : (
+                          <Text style={styles.deleteCodeText}>✕</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                {businessCodes.length === 0 && (
+                  <Text style={styles.emptyText}>No business codes created yet</Text>
+                )}
+              </ScrollView>
             </View>
           </View>
 
@@ -341,9 +353,7 @@ export default function OwnerDashboardScreen() {
                 >
                   <View style={styles.businessInfo}>
                     <Text style={styles.businessName}>{business.name}</Text>
-                    <Text style={styles.businessDetails}>
-                      {business.address} • {business.tags.join(', ')}
-                    </Text>
+                    <Text style={styles.businessDetails}>Code: {business.id}</Text>
                   </View>
                   <View style={styles.businessActions}>
                     <Text style={styles.businessEvents}>
@@ -376,24 +386,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#fff',
+    color: '#1a1a1a',
     fontSize: 16,
     marginTop: 12,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingTop: Platform.OS === 'ios' ? 20 : 16,
-  },
   logoButton: {
+    position: 'absolute',
+    left: 6,
+    top: Platform.OS === 'ios' ? 25 : 5,
     padding: 8,
+    zIndex: 10,
   },
   logoImage: {
-    width: 120,
-    height: 20,
+    width: 150,
+    height: 50,
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -410,7 +416,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#fff',
+    color: '#1a1a1a',
     marginBottom: 16,
     letterSpacing: 0.3,
   },
@@ -444,7 +450,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#1a1a1a',
     marginBottom: 12,
   },
   createCodeRow: {
@@ -457,7 +463,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    color: '#fff',
+    color: '#1a1a1a',
     fontSize: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.3)',
@@ -484,6 +490,12 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(255,255,255,0.2)',
     paddingTop: 20,
   },
+  codesScrollView: {
+    maxHeight: 200,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 8,
+    paddingVertical: 8,
+  },
   codeItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -494,7 +506,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   codeText: {
-    color: '#fff',
+    color: '#1a1a1a',
     fontSize: 16,
     fontWeight: '500',
   },
@@ -532,7 +544,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   businessName: {
-    color: '#fff',
+    color: '#1a1a1a',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,

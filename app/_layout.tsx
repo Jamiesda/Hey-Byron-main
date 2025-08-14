@@ -24,9 +24,7 @@ export default function RootLayout() {
         await Asset.loadAsync([
           require('../assets/background.png'),
           require('../assets/logo2.png'),
-          require('../assets/hey.byronblack.png'),
-          require('../assets/heybyron new.png'),
-          require('../assets/logo3.png'),
+          require('../assets/heybyronhorizontallogo.png'),
         ]);
         
         console.log('Assets preloaded successfully');

@@ -5,12 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { ResizeMode, Video } from 'expo-av';
 import React from 'react';
 import {
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { isImage, isVideo } from '../../constants/fileConfig';
 import { FirebaseEvent } from '../../utils/firebaseUtils';
@@ -143,7 +143,7 @@ export default function EventsList({
                           style={styles.editEventButton}
                           onPress={() => onEdit(event)}
                         >
-                          <Ionicons name="create-outline" size={18} color="#fff" />
+                          <Ionicons name="create-outline" size={18} color="#4a9b8e" />
                           <Text style={styles.editEventButtonText}>Edit</Text>
                         </TouchableOpacity>
                         
@@ -151,7 +151,7 @@ export default function EventsList({
                           style={styles.deleteEventButton}
                           onPress={() => onDelete(event.id)}
                         >
-                          <Ionicons name="trash-outline" size={18} color="#000" />
+                          <Ionicons name="trash-outline" size={18} color="#ff6b6b" />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -213,7 +213,7 @@ export default function EventsList({
                           style={styles.deleteEventButton}
                           onPress={() => onDeletePending(event.id)}
                         >
-                          <Ionicons name="trash-outline" size={20} color="#000" />
+                          <Ionicons name="trash-outline" size={20} color="#ff6b6b" />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -230,17 +230,15 @@ export default function EventsList({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -249,13 +247,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cardTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#fff',
-    letterSpacing: 0.3,
+    color: '#000',
+    marginBottom: 20,
+    textAlign: 'center',
   },
   eventCountBadge: {
-    backgroundColor: '#fff',
+    backgroundColor: '#4a9b8e',
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -263,7 +262,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   eventCountText: {
-    color: '#000',
+    color: '#fff',
     fontSize: 16,
     fontWeight: '700',
   },
@@ -279,14 +278,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   emptyStateText: {
-    color: '#fff',
+    color: '#000',
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyStateSubtext: {
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(0,0,0,0.7)',
     fontSize: 14,
     textAlign: 'center',
     maxWidth: 250,
@@ -298,7 +297,7 @@ const styles = StyleSheet.create({
   eventsListTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#000',
     marginBottom: 12,
     marginTop: 8,
   },
@@ -316,12 +315,12 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   eventCard: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: 16,
     marginBottom: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(0,0,0,0.1)',
   },
   pendingEventCard: {
     opacity: 0.8,
@@ -335,7 +334,7 @@ const styles = StyleSheet.create({
     aspectRatio: undefined, // ✅ Will be set dynamically
     minHeight: 180,         // ✅ Minimum height for very wide images
     maxHeight: 400,         // ✅ Maximum height for very tall images
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.1)',
   },
   eventContent: {
     padding: 16,
@@ -346,17 +345,17 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#fff',
+    color: '#000',
     marginBottom: 4,
   },
   eventDate: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(0,0,0,0.7)',
     fontWeight: '500',
   },
   eventCaption: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(0,0,0,0.7)',
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -367,8 +366,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   eventTag: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    color: 'rgba(255,255,255,0.8)',
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    color: 'rgba(0,0,0,0.8)',
     fontSize: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -395,23 +394,27 @@ const styles = StyleSheet.create({
   editEventButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(74, 155, 142, 0.1)',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(74, 155, 142, 0.3)',
     gap: 6,
   },
   editEventButtonText: {
-    color: '#fff',
+    color: '#4a9b8e',
     fontSize: 14,
     fontWeight: '500',
   },
   deleteEventButton: {
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,0,0,0.1)',
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,0,0,0.3)',
   },
 }); 

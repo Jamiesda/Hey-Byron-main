@@ -5,13 +5,13 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useState } from 'react';
 import {
-  Modal,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    Modal,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { MAX_VIDEO_SIZE } from '../../constants/fileConfig';
 import { INTERNAL_OPTIONS } from '../../constants/interestOptions';
@@ -217,7 +217,7 @@ export default function EventForm({
           value={eventData.title}
           onChangeText={handleFieldChange('title')}
           placeholder="What's happening?"
-          placeholderTextColor="rgba(255,255,255,0.5)"
+          placeholderTextColor="rgba(0,0,0,0.5)"
           maxLength={100}
         />
       </View>
@@ -229,7 +229,7 @@ export default function EventForm({
           value={eventData.caption}
           onChangeText={handleFieldChange('caption')}
           placeholder="Tell people about your event"
-          placeholderTextColor="rgba(255,255,255,0.5)"
+          placeholderTextColor="rgba(0,0,0,0.5)"
           multiline
           numberOfLines={4}
           textAlignVertical="top"
@@ -247,7 +247,7 @@ export default function EventForm({
           value={eventData.link}
           onChangeText={handleFieldChange('link')}
           placeholder="tickets.com"
-          placeholderTextColor="rgba(255,255,255,0.5)"
+          placeholderTextColor="rgba(0,0,0,0.5)"
           maxLength={200}
           autoCapitalize="none"
           autoCorrect={false}
@@ -291,7 +291,7 @@ export default function EventForm({
           <Text style={styles.datePickerText}>
             {formatDate(eventData.date)}
           </Text>
-          <Ionicons name="calendar-outline" size={20} color="#fff" />
+          <Ionicons name="calendar-outline" size={20} color="#000" />
         </TouchableOpacity>
       </View>
 
@@ -356,7 +356,7 @@ export default function EventForm({
               onDataChange({ recurrenceCount: Math.min(Math.max(num, 1), max) });
             }}
             placeholder={eventData.recurrenceType === 'daily' ? "1-30" : "1-10"}
-            placeholderTextColor="rgba(255,255,255,0.5)"
+            placeholderTextColor="rgba(0,0,0,0.5)"
             keyboardType="numeric"
             maxLength={2}
           />
@@ -392,7 +392,7 @@ export default function EventForm({
                 setShowCustomDateModal(true);
               }}
             >
-              <Ionicons name="add-circle-outline" size={20} color="#4fc3f7" />
+              <Ionicons name="add-circle-outline" size={20} color="#4a9b8e" />
               <Text style={styles.addDateButtonText}>
                 Add Date ({(eventData.customDates || []).length}/10)
               </Text>
@@ -494,25 +494,22 @@ export default function EventForm({
 
 const styles = StyleSheet.create({
   eventFormCard: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   eventFormTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#fff',
+    color: '#000',
     marginBottom: 20,
     textAlign: 'center',
-    letterSpacing: 0.3,
   },
   uploadProgress: {
     backgroundColor: 'rgba(79, 195, 247, 0.1)',
@@ -578,24 +575,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   inputLabel: {
-    color: '#fff',
+    color: '#000',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
     letterSpacing: 0.3,
   },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 12,
     padding: 16,
-    color: '#fff',
     fontSize: 16,
+    color: '#000',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    minHeight: 56,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    minHeight: 50,
   },
   multilineInput: {
     minHeight: 100,
@@ -603,7 +600,7 @@ const styles = StyleSheet.create({
   },
   characterCount: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(0,0,0,0.6)',
     fontWeight: '500',
     marginTop: 6,
   },
@@ -613,36 +610,36 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   interestChip: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.1)',
     borderRadius: 20,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(0,0,0,0.2)',
   },
   interestChipSelected: {
-    backgroundColor: '#fff',
+    backgroundColor: '#4a9b8e',
   },
   interestChipText: {
-    color: '#fff',
+    color: '#000',
     fontSize: 14,
     fontWeight: '500',
   },
   interestChipTextSelected: {
-    color: '#000',
+    color: '#fff',
   },
   datePickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
   },
   datePickerText: {
-    color: '#fff',
+    color: '#000',
     fontSize: 16,
     fontWeight: '500',
   },
@@ -657,23 +654,23 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   recurrenceOption: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.1)',
     borderRadius: 20,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(0,0,0,0.2)',
   },
   recurrenceOptionSelected: {
-    backgroundColor: '#4fc3f7',
+    backgroundColor: '#4a9b8e',
   },
   recurrenceOptionText: {
-    color: '#fff',
+    color: '#000',
     fontSize: 14,
     fontWeight: '500',
   },
   recurrenceOptionTextSelected: {
-    color: '#000',
+    color: '#fff',
   },
   customDatesContainer: {
     gap: 8,
@@ -683,12 +680,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     padding: 12,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
   },
   customDateText: {
-    color: '#fff',
+    color: '#000',
     fontSize: 14,
     fontWeight: '500',
     flex: 1,
@@ -697,15 +696,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(79, 195, 247, 0.1)',
+    backgroundColor: 'rgba(74, 155, 142, 0.1)',
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(79, 195, 247, 0.3)',
+    borderColor: 'rgba(74, 155, 142, 0.3)',
     gap: 8,
   },
   addDateButtonText: {
-    color: '#4fc3f7',
+    color: '#4a9b8e',
     fontSize: 14,
     fontWeight: '600',
   },

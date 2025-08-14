@@ -1,5 +1,6 @@
 // app/admin/business-dashboard.tsx
 // Business management separated from main dashboard
+// FIXED VERSION - Removed duplicate upload logic
 // @ts-nocheck
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -29,7 +30,6 @@ import { getErrorMessage } from '../../utils/ErrorHandling';
 import {
   loadBusinessFromFirebase,
   saveBusinessToFirebase,
-  uploadToFirebaseStorage
 } from '../../utils/firebaseUtils';
 
 // Import components
@@ -104,17 +104,9 @@ export default function BusinessDashboard() {
     setBusinessData(prev => ({ ...prev, ...data }));
   };
 
-  const handleBusinessImageSelected = async (uri: string) => {
-    try {
-      const ext = uri.split('.').pop() || 'jpg';
-      const filename = `business_${Date.now()}.${ext}`;
-      const uploadedUrl = await uploadToFirebaseStorage(uri, filename);
-      setBusinessData(prev => ({ ...prev, image: uploadedUrl }));
-    } catch (error) {
-      console.error('Error uploading business image:', error);
-      Alert.alert('Upload Failed', 'Failed to upload image. Please try again.');
-    }
-  };
+  // REMOVED: handleBusinessImageSelected function entirely
+  // The MediaPicker in BusinessForm now handles all image uploads directly
+  // The image URL gets updated via handleBusinessDataChange when MediaPicker calls onUploadComplete
 
   const saveBusiness = async () => {
     try {
@@ -135,7 +127,8 @@ export default function BusinessDashboard() {
         return;
       }
 
-      // Save to Firebase
+      // Save to Firebase - businessData.image already contains the correct Firebase URL
+      // from MediaPicker's onUploadComplete callback
       await saveBusinessToFirebase(businessData, code!);
       Alert.alert('Success', 'Business information saved!');
       
@@ -161,8 +154,6 @@ export default function BusinessDashboard() {
       router.replace('/');
     }
   };
-
-
 
   if (loading) {
     return (
@@ -218,13 +209,14 @@ export default function BusinessDashboard() {
         >
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
             
-            {/* Business Form */}
+            {/* Business Form - UPDATED PROPS */}
             <BusinessForm
               businessData={businessData}
               onDataChange={handleBusinessDataChange}
-              onImageSelected={handleBusinessImageSelected}
               onSave={saveBusiness}
               loading={savingBiz}
+              businessId={code!}
+              // REMOVED: onImageSelected prop - MediaPicker handles everything
             />
 
           </ScrollView>

@@ -1,9 +1,11 @@
-// components/shared/MediaPicker.tsx - Simplified with light background styling
-// Uses same compression rules for both (quality: 0.8, no forced cropping)
+// components/shared/MediaPicker.tsx
+// Updated with adaptive image compression to ensure images are under 1MB
 // @ts-nocheck
 
 import { Ionicons } from '@expo/vector-icons';
 import { ResizeMode, Video } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import {
@@ -47,6 +49,12 @@ export interface MediaPickerProps {
   label?: string;
 }
 
+// Image compression constants
+const TARGET_IMAGE_SIZE = 1024 * 1024; // 1MB target for images
+const MIN_QUALITY = 0.2; // Minimum 20% quality
+const QUALITY_STEP = 0.1; // Reduce by 10% each iteration
+const MAX_DIMENSION = 1920; // Maximum width/height
+
 export default function MediaPicker({
   currentMedia,
   uploadType = 'event',
@@ -64,6 +72,107 @@ export default function MediaPicker({
   label,
 }: MediaPickerProps) {
   const [isUploading, setIsUploading] = useState(false);
+
+  // Get file size helper
+  const getFileSize = async (uri: string): Promise<number> => {
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      return fileInfo.exists ? fileInfo.size || 0 : 0;
+    } catch (error) {
+      console.error('Error getting file size:', error);
+      return 0;
+    }
+  };
+
+  // Adaptive image compression to ensure under 1MB
+  const compressImage = async (uri: string): Promise<string> => {
+    console.log('🔄 Starting image compression...');
+    
+    let currentUri = uri;
+    let currentQuality = 0.9; // Start with 90% quality
+    let currentSize = await getFileSize(uri);
+    let iteration = 0;
+
+    console.log(`📊 Original image size: ${(currentSize / 1024 / 1024).toFixed(2)}MB`);
+
+    // If already under target, return original
+    if (currentSize <= TARGET_IMAGE_SIZE) {
+      console.log('✅ Image already under 1MB, no compression needed');
+      return uri;
+    }
+
+    // Step 1: If very large, resize first
+    if (currentSize > TARGET_IMAGE_SIZE * 3) {
+      console.log('🔄 Large image detected, resizing first...');
+      try {
+        const resizeResult = await ImageManipulator.manipulateAsync(
+          uri,
+          [{ resize: { width: MAX_DIMENSION } }],
+          {
+            compress: 0.9,
+            format: ImageManipulator.SaveFormat.JPEG,
+          }
+        );
+        currentUri = resizeResult.uri;
+        currentSize = await getFileSize(currentUri);
+        console.log(`📊 After resize: ${(currentSize / 1024 / 1024).toFixed(2)}MB`);
+        
+        // Update progress for resize step
+        onUploadProgress?.(20);
+      } catch (error) {
+        console.warn('Resize failed, continuing with quality compression:', error);
+      }
+    }
+
+    // Step 2: Quality compression loop
+    while (currentSize > TARGET_IMAGE_SIZE && currentQuality >= MIN_QUALITY && iteration < 8) {
+      iteration++;
+      
+      try {
+        console.log(`🔄 Compression iteration ${iteration}, quality: ${(currentQuality * 100).toFixed(0)}%`);
+        
+        const result = await ImageManipulator.manipulateAsync(
+          uri, // Always use original URI for quality compression
+          currentSize > TARGET_IMAGE_SIZE * 3 ? [{ resize: { width: MAX_DIMENSION } }] : [],
+          {
+            compress: currentQuality,
+            format: ImageManipulator.SaveFormat.JPEG,
+          }
+        );
+
+        currentUri = result.uri;
+        currentSize = await getFileSize(currentUri);
+        
+        console.log(`📊 Iteration ${iteration}: ${(currentSize / 1024 / 1024).toFixed(2)}MB at ${(currentQuality * 100).toFixed(0)}% quality`);
+        
+        // Update progress (20% for resize + up to 60% for compression)
+        const compressionProgress = Math.min(60, iteration * 8);
+        onUploadProgress?.(20 + compressionProgress);
+
+        // Reduce quality for next iteration if still too large
+        if (currentSize > TARGET_IMAGE_SIZE) {
+          currentQuality -= QUALITY_STEP;
+        }
+
+      } catch (error) {
+        console.error(`❌ Compression iteration ${iteration} failed:`, error);
+        break;
+      }
+    }
+
+    const finalQuality = currentQuality + QUALITY_STEP;
+    const success = currentSize <= TARGET_IMAGE_SIZE;
+
+    console.log(`${success ? '✅' : '⚠️'} Image compression complete:`, {
+      originalSize: `${(await getFileSize(uri) / 1024 / 1024).toFixed(2)}MB`,
+      finalSize: `${(currentSize / 1024 / 1024).toFixed(2)}MB`,
+      finalQuality: `${(finalQuality * 100).toFixed(0)}%`,
+      iterations: iteration,
+      success
+    });
+
+    return currentUri;
+  };
 
   // Smart delete media based on upload type
   const smartDeleteMedia = async (mediaUrl: string): Promise<boolean> => {
@@ -104,6 +213,18 @@ export default function MediaPicker({
         }
       }
       
+      let finalUri = uri;
+      
+      // Compress images only (not videos)
+      if (!isVideo(uri)) {
+        console.log('🖼️ Processing image...');
+        finalUri = await compressImage(uri);
+        onUploadProgress?.(80); // Compression complete
+      } else {
+        console.log('🎥 Processing video (no compression needed - server handles this)...');
+        onUploadProgress?.(50);
+      }
+      
       let url: string;
       
       if (uploadType === 'business') {
@@ -111,12 +232,12 @@ export default function MediaPicker({
         if (!businessId) {
           throw new Error('Business ID is required for business uploads');
         }
-        url = await uploadBusinessImageToFirebase(uri, businessId);
+        url = await uploadBusinessImageToFirebase(finalUri, businessId);
       } else {
         // Event upload - images and videos
-        const ext = uri.split('.').pop() || (isVideo(uri) ? 'mp4' : 'jpg');
+        const ext = finalUri.split('.').pop() || (isVideo(finalUri) ? 'mp4' : 'jpg');
         const baseFilename = `event_${Date.now()}.${ext}`;
-        url = await uploadToFirebaseStorage(uri, baseFilename, eventId);
+        url = await uploadToFirebaseStorage(finalUri, baseFilename, eventId);
       }
       
       onUploadProgress?.(100);
@@ -125,7 +246,7 @@ export default function MediaPicker({
       
     } catch (error) {
       console.error('❌ Upload failed:', error);
-      onUploadError?.(error.message);
+      onUploadError?.(error.message || 'Upload failed');
     } finally {
       setIsUploading(false);
       onUploadEnd?.();
@@ -181,22 +302,25 @@ export default function MediaPicker({
         }
       }
 
-      // Use same compression rules for both events and businesses
+      // For videos, keep 80% resolution reduction as before
+      // For images, we'll use our custom compression instead of picker compression
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes,
         allowsEditing: false,  // Don't force cropping - preserve original aspect ratio
-        quality: 0.8,          // Same compression quality for both
+        quality: 0.9,          // High quality for images (we'll compress ourselves), 90% resolution for videos
         videoMaxDuration: 60,
       });
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
         
-        if (asset.fileSize && asset.fileSize > maxSizeBytes) {
+        // For videos, check original maxSizeBytes limit
+        // For images, we'll compress them to under 1MB regardless
+        if (isVideo(asset.uri) && asset.fileSize && asset.fileSize > maxSizeBytes) {
           const maxSizeMB = Math.round(maxSizeBytes / (1024 * 1024));
           Alert.alert(
-            'File Too Large', 
-            `Please select a file smaller than ${maxSizeMB}MB`
+            'Video Too Large', 
+            `Please select a video smaller than ${maxSizeMB}MB`
           );
           return;
         }
@@ -231,7 +355,7 @@ export default function MediaPicker({
     } else if (allowVideo) {
       return currentMedia ? 'Change Video' : 'Add Video';
     } else {
-      return currentMedia ? 'Change Photo' : 'Add Photo';
+      return currentMedia ? 'Change Image' : 'Add Image';
     }
   };
 
@@ -242,13 +366,13 @@ export default function MediaPicker({
       {currentMedia ? (
         <View style={styles.mediaContainer}>
           {isVideo(currentMedia) ? (
-            <Video 
-              style={styles.mediaPreview}
+            <Video
               source={{ uri: currentMedia }}
-              shouldPlay={false}
-              useNativeControls={false}
+              style={styles.mediaPreview}
               resizeMode={ResizeMode.COVER}
+              shouldPlay={false}
               isLooping={false}
+              useNativeControls
             />
           ) : (
             <Image 
@@ -259,22 +383,36 @@ export default function MediaPicker({
           )}
           
           <View style={styles.mediaActions}>
-            <TouchableOpacity style={styles.replaceButton} onPress={pickMedia}>
+            <TouchableOpacity 
+              style={styles.replaceButton}
+              onPress={pickMedia}
+              disabled={isUploading}
+            >
               <Ionicons name="camera-outline" size={16} color="#000" />
               <Text style={styles.replaceButtonText}>Replace</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteMedia}>
+            <TouchableOpacity 
+              style={styles.deleteButton}
+              onPress={handleDeleteMedia}
+              disabled={isUploading}
+            >
               <Ionicons name="trash-outline" size={18} color="#ff6b6b" />
             </TouchableOpacity>
           </View>
         </View>
       ) : (
-        <TouchableOpacity style={styles.uploadButton} onPress={pickMedia} disabled={isUploading}>
+        <TouchableOpacity 
+          style={styles.uploadButton}
+          onPress={pickMedia}
+          disabled={isUploading}
+        >
           {isUploading ? (
             <View style={styles.uploadingContainer}>
               <ActivityIndicator size="small" color="#000" />
-              <Text style={styles.uploadingText}>Uploading...</Text>
+              <Text style={styles.uploadingText}>
+                {uploadType === 'business' ? 'Compressing & Uploading...' : 'Processing & Uploading...'}
+              </Text>
             </View>
           ) : (
             <>
@@ -285,6 +423,11 @@ export default function MediaPicker({
               <Text style={styles.uploadSubtext}>
                 Tap to select from gallery
               </Text>
+              {uploadType === 'business' && (
+                <Text style={styles.compressionNote}>
+                  Images automatically compressed to under 1MB
+                </Text>
+              )}
             </>
           )}
         </TouchableOpacity>
@@ -376,5 +519,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
     textAlign: 'center',
+  },
+  compressionNote: {
+    color: 'rgba(0,0,0,0.5)',
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

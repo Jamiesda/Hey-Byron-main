@@ -1,5 +1,5 @@
 // components/business/BusinessForm.tsx
-// Updated to work with the modified MediaPicker component
+// FIXED VERSION - Single upload path, no duplication
 
 import React from 'react';
 import {
@@ -26,9 +26,8 @@ export interface BusinessFormProps {
   onSave: () => void;
   loading: boolean;
   onDataChange: (data: Partial<BusinessFormData>) => void;
-  onImageSelected: (uri: string) => void;
-  onImageDeleted?: () => void;
-  businessId: string; // NEW: Required for business image uploads
+  businessId: string;
+  // REMOVED: onImageSelected and onImageDeleted - MediaPicker handles everything
 }
 
 export default function BusinessForm({
@@ -36,8 +35,6 @@ export default function BusinessForm({
   onSave,
   loading,
   onDataChange,
-  onImageSelected,
-  onImageDeleted,
   businessId,
 }: BusinessFormProps) {
 
@@ -49,24 +46,25 @@ export default function BusinessForm({
     <View style={styles.card}>
       <Text style={styles.cardTitle}>Business Information</Text>
       
-      {/* Business Image Picker - Updated to use correct props */}
+      {/* Business Image Picker - SINGLE SOURCE OF TRUTH */}
       <MediaPicker
-        uploadType="business"           // ADD THIS LINE
-        businessId={businessId}         // ADD THIS LINE
+        uploadType="business"
+        businessId={businessId}
         currentMedia={businessData.image}
         maxSizeBytes={MAX_IMAGE_SIZE}
         allowVideo={false}
         allowImage={true}
         onUploadComplete={(url) => {
+          // ONLY update the form data - no duplicate upload
           onDataChange({ image: url });
-          onImageSelected(url);
         }}
         onMediaDeleted={() => {
+          // ONLY clear the form data - MediaPicker handles Firebase deletion
           onDataChange({ image: undefined });
-          onImageDeleted?.();
         }}
         onUploadError={(error) => {
           console.error('Business image upload error:', error);
+          // Could add Alert here if you want user-facing error messages
         }}
       />
 
@@ -106,13 +104,9 @@ export default function BusinessForm({
           style={styles.input}
           value={businessData.tags}
           onChangeText={handleFieldChange('tags')}
-          placeholder="e.g. restaurant, cafe, italian"
-          placeholderTextColor="rgba(0,0,0,0.5)"
-          maxLength={100}
+          placeholder="e.g. restaurant, cafe, food"
+          multiline
         />
-        <Text style={styles.helperText}>
-          Separate tags with commas (e.g. restaurant, cafe, italian)
-        </Text>
       </View>
 
       <FormInput
@@ -120,34 +114,23 @@ export default function BusinessForm({
         value={businessData.website}
         onChangeText={handleFieldChange('website')}
         placeholder="https://yourwebsite.com"
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="url"
         maxLength={200}
       />
 
-      <View style={styles.inputContainer}>
-        <Text style={styles.inputLabel}>Social Links</Text>
-        <TextInput
-          style={styles.input}
-          value={businessData.socialLinks}
-          onChangeText={handleFieldChange('socialLinks')}
-          placeholder="https://instagram.com/yourbusiness, https://facebook.com/yourbusiness"
-          placeholderTextColor="rgba(0,0,0,0.5)"
-          maxLength={300}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        <Text style={styles.helperText}>
-          Separate multiple links with commas
-        </Text>
-      </View>
+      <FormInput
+        label="Social Links"
+        value={businessData.socialLinks}
+        onChangeText={handleFieldChange('socialLinks')}
+        placeholder="Instagram, Facebook URLs (comma separated)"
+        multiline
+        maxLength={500}
+      />
 
       <LoadingButton
+        title="Save Business"
         onPress={onSave}
         loading={loading}
-        title="Save Business Information"
-        loadingTitle="Saving..."
+        style={styles.saveButton}
       />
     </View>
   );
@@ -155,27 +138,25 @@ export default function BusinessForm({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(255,255,255,0.75)',
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   cardTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: '#000',
-    letterSpacing: 0.3,
-    marginBottom: 8,
+    marginBottom: 20,
+    textAlign: 'center',
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   inputLabel: {
     color: '#000',
@@ -185,18 +166,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 12,
     padding: 16,
-    color: '#000',
     fontSize: 16,
+    color: '#000',
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.2)',
-    minHeight: 56,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    minHeight: 50,
   },
-  helperText: {
-    fontSize: 12,
-    color: 'rgba(0,0,0,0.6)',
-    marginTop: 6,
+  saveButton: {
+    marginTop: 20,
   },
 });

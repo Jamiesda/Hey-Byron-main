@@ -61,8 +61,8 @@ const LOAD_MORE_HEIGHT = 80;
 
 // Updated viewability config for full visibility detection
 const VIEWABILITY_CONFIG = {
-  viewAreaCoveragePercentThreshold: 100,
-  minimumViewTime: 100,
+  itemVisiblePercentThreshold: 1,
+  minimumViewTime: 50,
 };
 
 // Header animation constants
@@ -1186,36 +1186,38 @@ export default function WhatsOnScreen() {
 
   const handleViewableItemsChanged = useCallback(
     ({ viewableItems }: any) => {
-      const visible = viewableItems
-        .filter((v: any) => v.isViewable && (v.item.type === 'header' || v.item.type === 'event'))
+      // Get all currently visible items
+      const visibleItems = viewableItems
+        .filter((v: any) => v.isViewable)
         .sort((a: any, b: any) => a.index - b.index);
 
-      if (visible.length > 0) {
-        const first = visible[0].item;
-        if (first.type === 'header') {
-          setFloatingDate(first.data.title);
-        } else {
-          const dateKey = first.data.date.slice(0, 10);
+      if (visibleItems.length > 0) {
+        // Find the first visible item (topmost on screen)
+        const firstVisible = visibleItems[0].item;
+        
+        if (firstVisible.type === 'header') {
+          // If the first visible item is a header, use that date
+          setFloatingDate(firstVisible.data.title);
+        } else if (firstVisible.type === 'event') {
+          // If the first visible item is an event, use its date
+          const dateKey = firstVisible.data.date.slice(0, 10);
           setFloatingDate(formatDateHeader(dateKey));
         }
       }
       
+      // Keep the video visibility logic
       const fullyVisibleVideoIds = new Set<string>();
-      
       viewableItems.forEach((viewableItem: any) => {
         const { item, isViewable } = viewableItem;
-        
         if (item.type === 'event' && item.data && isViewable) {
           const eventData = item.data;
           const uri = eventData.video || eventData.image;
           const shouldShowAsVideo = isVideo(uri);
-          
           if (shouldShowAsVideo) {
             fullyVisibleVideoIds.add(eventData.id);
           }
         }
       });
-      
       dispatch({ type: 'SET_VISIBLE_VIDEOS', payload: fullyVisibleVideoIds });
     },
     []

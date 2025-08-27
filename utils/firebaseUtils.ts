@@ -7,6 +7,7 @@ import {
   getDoc,
   getDocs,
   limit,
+  orderBy,
   query,
   setDoc,
   where,
@@ -719,3 +720,596 @@ export const loadEventsAndBusinesses = async () => {
     throw error;
   }
 };
+
+// ==========================================
+// SMART CACHE IMPLEMENTATION
+// ==========================================
+
+interface BusinessCache {
+  data: FirebaseBusiness[];
+  lastCacheTime: number;
+  lastUpdateTime: number;
+}
+
+interface EventCache {
+  data: FirebaseEvent[];
+  lastCacheTime: number;
+  loadedUntilDate: string | null;
+  isEmpty: boolean;
+}
+
+interface CacheMetrics {
+  businessReads: number;
+  eventReads: number;
+  cacheHits: number;
+  cacheMisses: number;
+}
+
+const CACHE_CONFIG = {
+  BUSINESS_CACHE_DURATION: 24 * 60 * 60 * 1000, // 24 hours
+  EVENT_CACHE_DURATION: 2 * 60 * 60 * 1000,     // 2 hours
+  EVENTS_PER_CHUNK: 20,
+  TARGET_DISPLAYABLE_EVENTS: 20,
+  MAX_CHUNKS_PER_LOAD: 10,
+};
+
+let businessCache: BusinessCache | null = null;
+let eventCache: EventCache | null = null;
+let cacheMetrics: CacheMetrics = {
+  businessReads: 0,
+  eventReads: 0,
+  cacheHits: 0,
+  cacheMisses: 0,
+};
+
+const isCacheValid = (lastCacheTime: number, duration: number): boolean => {
+  return Date.now() - lastCacheTime < duration;
+};
+
+const getCurrentDateString = (): string => {
+  const now = new Date();
+  return now.toISOString().split('T')[0];
+};
+
+const addDays = (dateString: string, days: number): string => {
+  const date = new Date(dateString);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().split('T')[0];
+};
+
+const logCacheMetrics = (): void => {
+  console.log('📊 Cache Performance:', {
+    businessReads: cacheMetrics.businessReads,
+    eventReads: cacheMetrics.eventReads,
+    cacheHits: cacheMetrics.cacheHits,
+    cacheMisses: cacheMetrics.cacheMisses,
+    hitRate: `${((cacheMetrics.cacheHits / (cacheMetrics.cacheHits + cacheMetrics.cacheMisses)) * 100).toFixed(1)}%`
+  });
+};
+
+export const clearAllCaches = (): void => {
+  businessCache = null;
+  eventCache = null;
+  console.log('🗑️ All caches cleared');
+};
+
+const loadBusinessesCached = async (): Promise<FirebaseBusiness[]> => {
+  const now = Date.now();
+
+  if (businessCache && isCacheValid(businessCache.lastCacheTime, CACHE_CONFIG.BUSINESS_CACHE_DURATION)) {
+    console.log('✅ Using cached businesses');
+    cacheMetrics.cacheHits++;
+    return businessCache.data;
+  }
+
+  console.log('🔄 Loading businesses from Firebase...');
+  cacheMetrics.cacheMisses++;
+
+  try {
+    let businesses: FirebaseBusiness[] = [];
+
+    if (businessCache && businessCache.lastUpdateTime) {
+      console.log('📈 Performing incremental business update');
+      
+      const incrementalQuery = query(
+        collection(db, 'businesses'),
+        where('updatedAt', '>', new Date(businessCache.lastUpdateTime).toISOString()),
+        orderBy('updatedAt', 'asc')
+      );
+
+      const incrementalSnap = await getDocs(incrementalQuery);
+      cacheMetrics.businessReads += incrementalSnap.size;
+
+      if (incrementalSnap.size > 0) {
+        console.log(`📊 Found ${incrementalSnap.size} updated businesses`);
+        
+        businesses = [...businessCache.data];
+        
+        incrementalSnap.forEach(doc => {
+          const updatedBusiness = { id: doc.id, ...doc.data() } as FirebaseBusiness;
+          const existingIndex = businesses.findIndex(b => b.id === updatedBusiness.id);
+          
+          if (existingIndex >= 0) {
+            businesses[existingIndex] = updatedBusiness;
+          } else {
+            businesses.push(updatedBusiness);
+          }
+        });
+      } else {
+        console.log('📊 No business updates found, using existing cache');
+        businesses = businessCache.data;
+      }
+    } else {
+      console.log('📊 Performing full business load');
+      
+      const fullQuery = query(collection(db, 'businesses'));
+      const fullSnap = await getDocs(fullQuery);
+      cacheMetrics.businessReads += fullSnap.size;
+
+      fullSnap.forEach(doc => {
+        businesses.push({ id: doc.id, ...doc.data() } as FirebaseBusiness);
+      });
+    }
+
+    businessCache = {
+      data: businesses,
+      lastCacheTime: now,
+      lastUpdateTime: now,
+    };
+
+    console.log(`✅ Cached ${businesses.length} businesses`);
+    return businesses;
+
+  } catch (error) {
+    console.error('❌ Error loading businesses:', error);
+    
+    if (businessCache) {
+      console.log('⚠️ Using stale business cache due to error');
+      return businessCache.data;
+    }
+    
+    throw error;
+  }
+};
+
+const findNextEventDate = async (startDate: string): Promise<string | null> => {
+  try {
+    const nextEventQuery = query(
+      collection(db, 'events'),
+      where('date', '>=', startDate),
+      orderBy('date', 'asc'),
+      limit(1)
+    );
+
+    const nextEventSnap = await getDocs(nextEventQuery);
+    cacheMetrics.eventReads += 1;
+
+    if (nextEventSnap.empty) {
+      return null;
+    }
+
+    const nextEvent = nextEventSnap.docs[0].data();
+    return nextEvent.date.split('T')[0];
+  } catch (error) {
+    console.error('❌ Error finding next event date:', error);
+    return null;
+  }
+};
+
+const loadEventsForDateRange = async (startDate: string, endDate: string): Promise<FirebaseEvent[]> => {
+  try {
+    const eventsQuery = query(
+      collection(db, 'events'),
+      where('date', '>=', startDate),
+      where('date', '<', endDate),
+      orderBy('date', 'asc')
+    );
+
+    const eventsSnap = await getDocs(eventsQuery);
+    cacheMetrics.eventReads += eventsSnap.size;
+
+    const events: FirebaseEvent[] = [];
+    eventsSnap.forEach(doc => {
+      events.push({ id: doc.id, ...doc.data() } as FirebaseEvent);
+    });
+
+    return events;
+  } catch (error) {
+    console.error('❌ Error loading events for date range:', error);
+    return [];
+  }
+};
+
+const loadEventsProgressive = async (
+  startDate: string,
+  targetCount: number = CACHE_CONFIG.TARGET_DISPLAYABLE_EVENTS
+): Promise<{ events: FirebaseEvent[], loadedUntilDate: string }> => {
+  console.log(`🔄 Loading events progressively from ${startDate}, target: ${targetCount}`);
+  
+  let allEvents: FirebaseEvent[] = [];
+  let currentDate = startDate;
+  let chunksLoaded = 0;
+  let loadedUntilDate = startDate;
+
+  while (allEvents.length < targetCount && chunksLoaded < CACHE_CONFIG.MAX_CHUNKS_PER_LOAD) {
+    const nextEventDate = await findNextEventDate(currentDate);
+    
+    if (!nextEventDate) {
+      console.log('📊 No more events found');
+      break;
+    }
+
+    const daysSkipped = Math.floor(
+      (new Date(nextEventDate).getTime() - new Date(currentDate).getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    if (daysSkipped > 0) {
+      console.log(`⏭️ Skipped ${daysSkipped} empty days`);
+    }
+
+    const chunkEndDate = addDays(nextEventDate, 1);
+    const chunkEvents = await loadEventsForDateRange(nextEventDate, chunkEndDate);
+    
+    allEvents = [...allEvents, ...chunkEvents];
+    loadedUntilDate = chunkEndDate;
+    chunksLoaded++;
+    
+    console.log(`📊 Loaded chunk ${chunksLoaded}: ${chunkEvents.length} events (total: ${allEvents.length})`);
+    
+    currentDate = chunkEndDate;
+  }
+
+  console.log(`✅ Progressive loading complete: ${allEvents.length} events, ${chunksLoaded} chunks`);
+  
+  return { events: allEvents, loadedUntilDate };
+};
+
+const loadEventsCached = async (): Promise<FirebaseEvent[]> => {
+  const now = Date.now();
+  const todayString = getCurrentDateString();
+
+  if (eventCache && isCacheValid(eventCache.lastCacheTime, CACHE_CONFIG.EVENT_CACHE_DURATION)) {
+    console.log('✅ Using cached events');
+    cacheMetrics.cacheHits++;
+    return eventCache.data;
+  }
+
+  console.log('🔄 Loading events from Firebase...');
+  cacheMetrics.cacheMisses++;
+
+  try {
+    const { events, loadedUntilDate } = await loadEventsProgressive(todayString);
+
+    eventCache = {
+      data: events,
+      lastCacheTime: now,
+      loadedUntilDate,
+      isEmpty: events.length === 0,
+    };
+
+    console.log(`✅ Cached ${events.length} events (loaded until ${loadedUntilDate})`);
+    return events;
+
+  } catch (error) {
+    console.error('❌ Error loading events:', error);
+    
+    if (eventCache) {
+      console.log('⚠️ Using stale event cache due to error');
+      return eventCache.data;
+    }
+    
+    throw error;
+  }
+};
+
+const extendEventCache = async (additionalCount: number = CACHE_CONFIG.TARGET_DISPLAYABLE_EVENTS): Promise<FirebaseEvent[]> => {
+  if (!eventCache || !eventCache.loadedUntilDate) {
+    console.log('⚠️ No existing cache to extend, performing full load');
+    return loadEventsCached();
+  }
+
+  console.log(`🔄 Extending event cache by ${additionalCount} events`);
+
+  try {
+    const { events: newEvents, loadedUntilDate } = await loadEventsProgressive(
+      eventCache.loadedUntilDate,
+      additionalCount
+    );
+
+    const allEvents = [...eventCache.data, ...newEvents];
+
+    eventCache = {
+      ...eventCache,
+      data: allEvents,
+      loadedUntilDate,
+      lastCacheTime: Date.now(),
+    };
+
+    console.log(`✅ Extended cache: ${newEvents.length} new events (total: ${allEvents.length})`);
+    return allEvents;
+
+  } catch (error) {
+    console.error('❌ Error extending event cache:', error);
+    return eventCache.data;
+  }
+};
+
+const shouldBypassCache = (
+  forcedDate?: string,
+  startDate?: string,
+  endDate?: string,
+  businessId?: string
+): boolean => {
+  if (forcedDate || startDate || endDate || businessId) {
+    console.log('🔀 Bypassing cache for specific query');
+    return true;
+  }
+  
+  return false;
+};
+
+export const loadEventsAndBusinessesCached = async (options: {
+  forcedDate?: string;
+  startDate?: string;
+  endDate?: string;
+  businessId?: string;
+} = {}) => {
+  const { forcedDate, startDate, endDate, businessId } = options;
+  
+  console.log('🚀 Loading events and businesses with smart cache...');
+  const startTime = Date.now();
+
+  try {
+    if (shouldBypassCache(forcedDate, startDate, endDate, businessId)) {
+      return await loadEventsAndBusinesses();
+    }
+
+    const [events, businesses] = await Promise.all([
+      loadEventsCached(),
+      loadBusinessesCached()
+    ]);
+
+    const loadTime = Date.now() - startTime;
+    console.log(`✅ Smart cache load complete: ${events.length} events, ${businesses.length} businesses (${loadTime}ms)`);
+    
+    logCacheMetrics();
+
+    return { events, businesses };
+
+  } catch (error) {
+    console.error('❌ Error in smart cache load:', error);
+    
+    console.log('🔄 Falling back to direct Firebase load');
+    return await loadEventsAndBusinesses();
+  }
+};
+
+export const loadMoreEventsCached = async (): Promise<FirebaseEvent[]> => {
+  console.log('🔄 Loading more events with cache extension...');
+  
+  try {
+    return await extendEventCache();
+  } catch (error) {
+    console.error('❌ Error loading more cached events:', error);
+    
+    if (eventCache) {
+      return eventCache.data;
+    }
+    
+    throw error;
+  }
+};
+
+export const refreshAllCaches = async () => {
+  console.log('🔄 Force refreshing all caches...');
+  
+  clearAllCaches();
+  
+  cacheMetrics = {
+    businessReads: 0,
+    eventReads: 0,
+    cacheHits: 0,
+    cacheMisses: 0,
+  };
+  
+  return await loadEventsAndBusinessesCached();
+};
+
+export const getCacheStatus = () => {
+  return {
+    businessCache: {
+      exists: !!businessCache,
+      itemCount: businessCache?.data.length || 0,
+      lastCacheTime: businessCache?.lastCacheTime || 0,
+      isValid: businessCache ? isCacheValid(businessCache.lastCacheTime, CACHE_CONFIG.BUSINESS_CACHE_DURATION) : false,
+    },
+    eventCache: {
+      exists: !!eventCache,
+      itemCount: eventCache?.data.length || 0,
+      lastCacheTime: eventCache?.lastCacheTime || 0,
+      loadedUntilDate: eventCache?.loadedUntilDate || null,
+      isValid: eventCache ? isCacheValid(eventCache.lastCacheTime, CACHE_CONFIG.EVENT_CACHE_DURATION) : false,
+    },
+    metrics: { ...cacheMetrics },
+  };
+};
+
+/**
+ * Check for new events with minimal reads
+ * Only does Firebase reads when new events actually exist
+ */
+export const checkForNewEventsLightweight = async (): Promise<boolean> => {
+  console.log('🔄 Checking for new events (lightweight)...');
+  
+  try {
+    if (!eventCache || eventCache.data.length === 0) {
+      console.log('📊 No event cache exists, need full load');
+      await loadEventsCached();
+      return true;
+    }
+    
+    // Get the most recent event date from our cache
+    const sortedCacheEvents = [...eventCache.data].sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+    
+    const mostRecentCacheDate = sortedCacheEvents[0]?.date || getCurrentDateString();
+    console.log(`📊 Most recent cached event: ${mostRecentCacheDate}`);
+    
+    // Check if there are ANY events newer than our most recent cached event
+    // This is just 1 Firebase read to check existence
+    const newEventsCheckQuery = query(
+      collection(db, 'events'),
+      where('date', '>', mostRecentCacheDate),
+      limit(1) // Just check if ANY newer events exist
+    );
+    
+    const newEventsCheckSnap = await getDocs(newEventsCheckQuery);
+    cacheMetrics.eventReads += 1; // Always 1 read for the existence check
+    
+    if (newEventsCheckSnap.empty) {
+      console.log('✅ No new events found - cache is current');
+      return false; // No new events, total cost: 1 read
+    }
+    
+    console.log('📊 New events detected! Loading them...');
+    
+    // Only if new events exist, do we load them
+    // Get all events newer than our cache
+    const newEventsQuery = query(
+      collection(db, 'events'),
+      where('date', '>', mostRecentCacheDate),
+      orderBy('date', 'asc')
+    );
+    
+    const newEventsSnap = await getDocs(newEventsQuery);
+    cacheMetrics.eventReads += newEventsSnap.size;
+    
+    const newEvents: FirebaseEvent[] = [];
+    newEventsSnap.forEach(doc => {
+      newEvents.push({ id: doc.id, ...doc.data() } as FirebaseEvent);
+    });
+    
+    // Add new events to existing cache
+    const updatedEvents = [...eventCache.data, ...newEvents];
+    
+    // Update cache with new events
+    eventCache = {
+      ...eventCache,
+      data: updatedEvents,
+      lastCacheTime: Date.now(),
+    };
+    
+    console.log(`✅ Added ${newEvents.length} new events to cache`);
+    return true; // New events found and loaded
+    
+  } catch (error) {
+    console.error('❌ Error checking for new events:', error);
+    return false;
+  }
+};
+
+/**
+ * Check for updated existing events (events that changed)
+ * Only useful if you have events that get edited after creation
+ */
+export const checkForUpdatedEvents = async (): Promise<boolean> => {
+  console.log('🔄 Checking for updated events...');
+  
+  try {
+    if (!eventCache || eventCache.data.length === 0) {
+      return false;
+    }
+    
+    // Get the most recent update time from our cache
+    const mostRecentUpdate = Math.max(
+      ...eventCache.data.map(event => new Date(event.updatedAt || event.createdAt).getTime())
+    );
+    
+    const recentUpdateTime = new Date(mostRecentUpdate).toISOString();
+    console.log(`📊 Checking for events updated after: ${recentUpdateTime}`);
+    
+    // Check for events updated since our most recent cache update
+    const updatedEventsQuery = query(
+      collection(db, 'events'),
+      where('updatedAt', '>', recentUpdateTime),
+      limit(5) // Only check recent updates
+    );
+    
+    const updatedEventsSnap = await getDocs(updatedEventsQuery);
+    cacheMetrics.eventReads += updatedEventsSnap.size;
+    
+    if (updatedEventsSnap.empty) {
+      console.log('✅ No updated events found');
+      return false;
+    }
+    
+    console.log(`📊 Found ${updatedEventsSnap.size} updated events`);
+    
+    // Update the cached events with new data
+    let hasUpdates = false;
+    const updatedCacheData = [...eventCache.data];
+    
+    updatedEventsSnap.forEach(doc => {
+      const updatedEvent = { id: doc.id, ...doc.data() } as FirebaseEvent;
+      const existingIndex = updatedCacheData.findIndex(e => e.id === updatedEvent.id);
+      
+      if (existingIndex >= 0) {
+        updatedCacheData[existingIndex] = updatedEvent;
+        hasUpdates = true;
+      }
+    });
+    
+    if (hasUpdates) {
+      eventCache = {
+        ...eventCache,
+        data: updatedCacheData,
+        lastCacheTime: Date.now(),
+      };
+      
+      console.log('✅ Updated existing events in cache');
+    }
+    
+    return hasUpdates;
+    
+  } catch (error) {
+    console.error('❌ Error checking for updated events:', error);
+    return false;
+  }
+};
+
+/**
+ * Complete lightweight refresh for pull-to-refresh
+ * Combines new events + updated events check
+ */
+export const lightweightRefresh = async (): Promise<boolean> => {
+  console.log('🔄 Starting lightweight refresh...');
+  
+  const startReads = cacheMetrics.eventReads;
+  
+  try {
+    // Check for new events (always 1 read minimum)
+    const hasNewEvents = await checkForNewEventsLightweight();
+    
+    // Check for updated events (only if you need this feature)
+    // const hasUpdatedEvents = await checkForUpdatedEvents();
+    
+    const totalReads = cacheMetrics.eventReads - startReads;
+    const hasChanges = hasNewEvents; // || hasUpdatedEvents;
+    
+    if (hasChanges) {
+      console.log(`✅ Lightweight refresh complete: found updates (${totalReads} reads)`);
+    } else {
+      console.log(`✅ Lightweight refresh complete: no updates (${totalReads} reads)`);
+    }
+    
+    return hasChanges;
+    
+  } catch (error) {
+    console.error('❌ Error in lightweight refresh:', error);
+    return false;
+  }
+};
+
+// Alias for backward compatibility and clearer naming in component
+export const forceRefreshAllCaches = refreshAllCaches;

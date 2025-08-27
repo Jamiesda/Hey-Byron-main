@@ -29,7 +29,9 @@ import { filterEventsByDistance, initializeLocationServices } from '../../utils/
 // FIREBASE IMPORTS
 import { handleFirebaseError } from '../../utils/ErrorHandling';
 import {
-  loadEventsAndBusinesses
+  lightweightRefresh,
+  loadEventsAndBusinesses,
+  loadEventsAndBusinessesCached
 } from '../../utils/firebaseUtils';
 
 // Import the scroll to top and clear filters functionality
@@ -825,13 +827,18 @@ export default function WhatsOnScreen() {
       let allEvents: RawEvent[] = [];
       let businesses: any[] = [];
 
-      // FIREBASE-ONLY: Load data from Firebase
+      // UPDATED: Use smart cache for main feed, direct Firebase for specific queries
       if (businessId) {
         const { events: loadedEvents, businesses: loadedBusinesses } = await loadEventsAndBusinesses();
         allEvents = loadedEvents.filter(e => e.businessId === businessId);
         businesses = loadedBusinesses;
       } else {
-        const { events: loadedEvents, businesses: loadedBusinesses } = await loadEventsAndBusinesses();
+        const { events: loadedEvents, businesses: loadedBusinesses } = await loadEventsAndBusinessesCached({
+          forcedDate,
+          startDate,
+          endDate,
+          businessId
+        });
         allEvents = loadedEvents;
         businesses = loadedBusinesses;
       }
@@ -956,7 +963,23 @@ export default function WhatsOnScreen() {
     dispatch({ type: 'SET_REFRESHING', payload: true });
     
     try {
-      await loadEventsData();
+      console.log('🔄 Pull-to-refresh: checking for new events...');
+      
+      // Lightweight check: only loads new events if they exist
+      const hasNewEvents = await lightweightRefresh();
+      
+      if (hasNewEvents) {
+        console.log('✅ New events found, updating feed...');
+        // Reload the data to apply filtering to new events
+        await loadEventsData();
+      } else {
+        console.log('✅ No new events, feed is current');
+        // Just complete the refresh animation without reloading
+      }
+      
+    } catch (error) {
+      console.error('❌ Error during refresh:', error);
+      // Still complete the refresh animation
     } finally {
       dispatch({ type: 'SET_REFRESHING', payload: false });
     }

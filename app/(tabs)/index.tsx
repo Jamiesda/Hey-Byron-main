@@ -822,7 +822,7 @@ export default function WhatsOnScreen() {
     loadingRef.current = true;
 
     try {
-      console.log('🔥 Loading events from Firebase...');
+      console.log('🔥 Loading events (checking preloaded cache)...');
       
       let allEvents: RawEvent[] = [];
       let businesses: any[] = [];

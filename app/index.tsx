@@ -43,7 +43,7 @@ export default function RootScreen() {
   // Memoize the gradient colors - clean dark gradient
   const gradientColors = useMemo(() => [
     '#ffffff',    
-    '#1a1a1a'
+    '#ffffff'
   ] as const, []);
 
   // Early return for business redirect loading state
@@ -131,12 +131,13 @@ const styles = StyleSheet.create({
   },
   logoSection: {
     alignItems: 'center',
-    marginTop: 90,
+    marginTop: 104,
+    marginLeft: 2,        // NEW: Moves logo right by 1 pixel
   },
   logo: {
-    width: '90%',
+    width: '89.5%',
     height: 250,
-    marginBottom: -40,
+    marginBottom: -50,
     // White drop shadow
     shadowColor: '#fff',
     shadowOffset: { width: 0, height: 2 },
@@ -146,14 +147,14 @@ const styles = StyleSheet.create({
   },
   tagline: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(83, 83, 83, 0.8)',
     letterSpacing: 2,
     textAlign: 'center',
     fontWeight: '300',
   },
   buttonSection: {
     gap: 24,
-    marginTop: 190,
+    marginTop: 150,
   },
   button: {
     borderRadius: 16,

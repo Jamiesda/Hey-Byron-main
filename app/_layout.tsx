@@ -1,5 +1,5 @@
 // app/_layout.tsx
-// Updated without ErrorBoundary
+// Updated with Firebase cache preloading during splash
 
 import { Asset } from 'expo-asset';
 import { Slot } from 'expo-router';
@@ -8,9 +8,13 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import SplashScreen from '../components/SplashScreen';
 
+// Import cache preloading
+import { loadEventsAndBusinessesCached } from '../utils/firebaseUtils';
+
 export default function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
   const [assetsLoaded, setAssetsLoaded] = useState(false);
+  const [cachePreloaded, setCachePreloaded] = useState(false);
 
   const handleSplashComplete = () => {
     setShowSplash(false);
@@ -23,7 +27,7 @@ export default function RootLayout() {
         // Preload the critical assets that cause loading delays
         await Asset.loadAsync([
           require('../assets/background.png'),
-          require('../assets/logo2.png'),
+          require('../assets/hey(2).png'),
           require('../assets/heybyronhorizontallogo.png'),
         ]);
         
@@ -39,6 +43,27 @@ export default function RootLayout() {
     loadAssets();
   }, []);
 
+  // NEW: Preload Firebase cache during splash
+  useEffect(() => {
+    const preloadCache = async () => {
+      try {
+        console.log('🚀 Preloading Firebase cache during splash...');
+        
+        // Start cache preload immediately (don't wait for assets)
+        await loadEventsAndBusinessesCached();
+        
+        console.log('✅ Firebase cache preloaded successfully');
+        setCachePreloaded(true);
+      } catch (error) {
+        console.error('❌ Failed to preload cache:', error);
+        // Still mark as loaded to prevent infinite splash
+        setCachePreloaded(true);
+      }
+    };
+
+    preloadCache();
+  }, []);
+
   return (
     <View style={styles.container}>
       <StatusBar style={showSplash ? "light" : "auto"} />
@@ -46,12 +71,13 @@ export default function RootLayout() {
       {/* App content renders immediately */}
       <Slot />
       
-      {/* Splash overlay - stays until assets are loaded AND minimum time elapsed */}
+      {/* Splash overlay - stays until BOTH assets and cache are loaded */}
       {showSplash && (
         <View style={StyleSheet.absoluteFillObject}>
           <SplashScreen 
             onComplete={handleSplashComplete}
             assetsReady={assetsLoaded}
+            cacheReady={cachePreloaded}
           />
         </View>
       )}

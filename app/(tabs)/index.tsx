@@ -24,6 +24,7 @@ import {
   View,
   VirtualizedList
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { filterEventsByDistance, initializeLocationServices } from '../../utils/locationUtils';
 
 // FIREBASE IMPORTS
@@ -58,7 +59,7 @@ const screenWidth = Dimensions.get('window').width;
 const EVENTS_PER_PAGE = 20;
 
 // Fixed heights for predictable layout
-const FIXED_HEADER_HEIGHT = 32;
+const FIXED_HEADER_HEIGHT = 40;
 const LOAD_MORE_HEIGHT = 80;
 
 // Updated viewability config for full visibility detection
@@ -708,6 +709,7 @@ export default function WhatsOnScreen() {
     businessId?: string;
   }>();
 
+  const insets = useSafeAreaInsets();
   const [state, dispatch] = useReducer(appReducer, initialState);
   const [floatingDate, setFloatingDate] = useState<string>('');
   const [lastDataHash, setLastDataHash] = useState<string>('');
@@ -768,12 +770,12 @@ export default function WhatsOnScreen() {
       headerOffset.interpolate({
         inputRange: [0, HEADER_SCROLL_DISTANCE],
         outputRange: [
-          HEADER_BASE_TOP + HEADER_MAX_HEIGHT - 12,
-          46
+          (Platform.OS === 'android' ? 48 : insets.top - 20) + HEADER_MAX_HEIGHT - 15,
+          Platform.OS === 'android' ? 48 : insets.top
         ],
         extrapolate: 'clamp',
       }),
-    [headerOffset]
+    [headerOffset, insets.top]
   );
 
   // Get visible items including load more button
@@ -1475,11 +1477,12 @@ export default function WhatsOnScreen() {
     <ImageBackground source={backgroundPattern} style={styles.background} resizeMode="repeat">
       <LinearGradient colors={GRADIENT_COLORS} style={StyleSheet.absoluteFillObject} />
 
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={[styles.safe, { paddingTop: 0 }]}>
         <Animated.View
           style={[
             styles.headerContainer,
             {
+              top: Platform.OS === 'android' ? 48 : insets.top - 20,
               height: headerHeight,
               transform: [{ translateY: headerTranslateY }],
               opacity: headerOpacity,
@@ -1539,7 +1542,7 @@ const styles = StyleSheet.create({
   },
   safe: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? 24 : 0,
+    paddingTop: 0,
   },
   headerContainer: {
     flexDirection: 'row',
@@ -1629,14 +1632,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 3,
-    marginBottom: 8,
+    marginBottom: 20,
   },
   dateText: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '700',
     color: 'rgba(194, 164, 120, 1)',
     textAlign: 'center',
     letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   cardContainer: {
     position: 'relative',
@@ -1647,7 +1651,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 6,
-    marginBottom: 12,
+    marginBottom: 20,
   },
   businessNameHeader: {
     backgroundColor: 'rgba(0,0,0,0.9)',
@@ -1824,11 +1828,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
+    paddingHorizontal: 16, 
   },
   floatingDateText: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '700',
     color: 'rgba(194, 164, 120, 1)',
     letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
 });
